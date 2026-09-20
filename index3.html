@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Recorridos GPS</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+        }
+
+        #mapa {
+            height: calc(100vh - 280px);
+            width: 100%;
+        }
+
+        #panel-historial {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 280px;
+            background: white;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            z-index: 1000;
+        }
+
+        .btn-calendario-desplegable {
+            width: 100%;
+            padding: 12px;
+            background-color: #fa8c16;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .btn-calendario-desplegable:after {
+            content: '▼';
+            font-size: 12px;
+            transition: transform 0.3s;
+        }
+
+        .btn-calendario-desplegable.activo:after {
+            transform: rotate(180deg);
+        }
+
+        .caja-calendario {
+            display: none;
+            background: #fff7e6;
+            border: 1px solid #ffd591;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .caja-calendario.abierta {
+            display: block;
+        }
+
+        .campo-input-fecha {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            font-size: 15px;
+            margin-top: 5px;
+        }
+
+        .lista-recorridos {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+
+        .item-recorrido {
+            background: #fafafa;
+            border: 1px solid #d9d9d9;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .item-recorrido:hover {
+            background: #e6f7ff;
+            border-color: #91d5ff;
+        }
+
+        .btn-volver {
+            width: 100%;
+            padding: 12px;
+            background-color: #1890ff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="mapa"></div>
+
+    <div id="panel-historial">
+        <!-- BOTÓN DESPLEGABLE CALENDARIO -->
+        <button id="btnToggleCalendario" class="btn-calendario-desplegable">
+            <span>📅 Elegir Fecha / Calendario</span>
+        </button>
+
+        <!-- CAJA OCULTA CON EL SELECTOR DE FECHA NATIVO -->
+        <div id="cajaCalendario" class="caja-calendario">
+            <label style="font-size: 12px; font-weight: bold; color: #d46b08;">Seleccionar fecha a consultar:</label>
+            <input type="date" id="inputFecha" class="campo-input-fecha" onchange="filtrarRecorridosPorFecha()">
+        </div>
+
+        <!-- CONTENEDOR CON LOS RECORRIDOS ENCONTRADOS -->
+        <div id="listaRecorridos" class="lista-recorridos">
+            <div style="text-align: center; color: #8c8c8c; margin-top: 15px; font-size: 13px;">
+                Cargando historial de recorridos...
+            </div>
+        </div>
+
+        <a href="index.html" class="btn-volver">↩️ Volver al GPS Principal</a>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+    const BASE_SUPRA = { lat: -32.9391230, lon: -68.8149017 };
+    const mapa = L.map('mapa', { preferCanvas: true }).setView([BASE_SUPRA.lat, BASE_SUPRA.lon], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, crossOrigin: true, attribution: '&copy; OpenStreetMap' }).addTo(mapa);
+
+    let trazadoActual = null;
+    let marcadoresVisualizados = [];
+
+    // Lógica para desplegar la caja del calendario
+    const btnToggle = document.getElementById("btnToggleCalendario");
+    const cajaCal = document.getElementById("cajaCalendario");
+
+    btnToggle.onclick = () => {
+        btnToggle.classList.toggle("activo");
+        cajaCal.classList.toggle("abierta");
+    };
+
+    function limpiarMapa() {
+        if (trazadoActual) { mapa.removeLayer(trazadoActual); trazadoActual = null; }
+        marcadoresVisualizados.forEach(m => mapa.removeLayer(m));
+        marcadoresVisualizados = [];
+    }
+
+    function cargarListaRecorridos(fechaFiltro = null) {
+        limpiarMapa();
+        const contenedor = document.getElementById("listaRecorridos");
+        contenedor.innerHTML = "";
+
+        const claves = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const clave = localStorage.key(i);
+            if (clave.startsWith("recorrido_")) {
+                claves.push(clave);
+            }
+        }
+
+        claves.sort().reverse(); 
+
+        let contador = 0;
+
+        claves.forEach(clave => {
+            const datos = JSON.parse(localStorage.getItem(clave));
+            if (!datos || !datos.fecha) return;
+
+            const fechaObj = new Date(datos.fecha);
+            const fechaFormatoInput = fechaObj.toISOString().split('T')[0];
+
+            if (fechaFiltro && fechaFormatoInput !== fechaFiltro) {
+                return;
+            }
+
+            contador++;
+            const horaStr = fechaObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const distKm = (datos.distancia / 1000).toFixed(2);
+
+            const div = document.createElement("div");
+            div.className = "item-recorrido";
+            div.innerHTML = `
+                <div>
+                    <strong style="color: #262626; font-size: 14px;">📍 Recorrido ${horaStr} hs</strong><br>
+                    <small style="color: #595959;">📏 Distancia: ${distKm} km | ${datos.puntos ? datos.puntos.length : 0} pts</small>
+                </div>
+                <button style="background: #ff4d4f; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold;" onclick="event.stopPropagation(); borrarRecorrido('${clave}')">🗑️</button>
+            `;
+
+            div.onclick = () => mostrarRecorridoEnMapa(datos);
+            contenedor.appendChild(div);
+        });
+
+        if (contador === 0) {
+            contenedor.innerHTML = `<div style="text-align: center; color: #8c8c8c; margin-top: 15px; font-size: 13px;">No se encontraron recorridos para la fecha seleccionada.</div>`;
+        }
+    }
+
+    function filtrarRecorridosPorFecha() {
+        const fechaVal = document.getElementById("inputFecha").value;
+        cargarListaRecorridos(fechaVal);
+    }
+
+    function mostrarRecorridoEnMapa(datos) {
+        limpiarMapa();
+
+        if (!datos.puntos || datos.puntos.length === 0) return;
+
+        trazadoActual = L.polyline(datos.puntos, { color: '#fa8c16', weight: 6, opacity: 0.9 }).addTo(mapa);
+        mapa.fitBounds(trazadoActual.getBounds(), { padding: [30, 30] });
+
+        const pInicio = datos.puntos[0];
+        const pFin = datos.puntos[datos.puntos.length - 1];
+
+        const mInicio = L.marker(pInicio, {
+            icon: L.divIcon({ html: `<div style="font-size: 26px;">🚩</div>`, className: '', iconSize: [30, 30], iconAnchor: [15, 15] })
+        }).addTo(mapa).bindPopup("<b>Inicio de recorrido</b>");
+
+        const mFin = L.marker(pFin, {
+            icon: L.divIcon({ html: `<div style="font-size: 26px;">🏁</div>`, className: '', iconSize: [30, 30], iconAnchor: [15, 15] })
+        }).addTo(mapa).bindPopup("<b>Fin de recorrido</b>");
+
+        marcadoresVisualizados.push(mInicio, mFin);
+    }
+
+    function borrarRecorrido(clave) {
+        if (confirm("¿Estás seguro de eliminar este recorrido del historial?")) {
+            localStorage.removeItem(clave);
+            filtrarRecorridosPorFecha();
+        }
+    }
+
+    window.onload = function() {
+        const hoy = new Date().toISOString().split('T')[0];
+        document.getElementById("inputFecha").value = hoy;
+        cargarListaRecorridos(hoy);
+    };
+    </script>
+</body>
+</html>

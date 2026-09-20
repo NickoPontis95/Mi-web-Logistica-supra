@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha de Entrega - Nipotti Congelados</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 12px; font-family: Arial, sans-serif; background: #e0f2f1; color: #004d40; padding-bottom: 30px; }
+        
+        .headerNavegacion { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .btnVolver { background: #00695c; color: white; text-decoration: none; padding: 10px 14px; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; border: none; cursor: pointer; }
+        
+        .tarjetaContenedor { background: white; border-radius: 10px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 6px solid #00695c; }
+        .tituloSeccion { font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #004d40; display: flex; align-items: center; gap: 6px; }
+
+        .campoInput { width: 100%; padding: 10px; margin: 6px 0 12px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+        
+        /* Ficha del Cliente */
+        .infoClienteBox { background: #f4fbfb; border: 1px solid #b2dfdb; border-radius: 8px; padding: 12px; margin-bottom: 12px; font-size: 13px; line-height: 1.5; }
+        .gridAccionesCliente { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+        .btnAccionFicha { border: none; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 12px; color: white; text-decoration: none; display: flex; justify-content: center; align-items: center; gap: 6px; cursor: pointer; text-align: center; }
+        .btnLlamar { background: #2e7d32; }
+        .btnMaps { background: #1976d2; }
+
+        /* Contadores / Input de Bultos Mixto */
+        .controlContador { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: #e8f5e9; padding: 10px 14px; border-radius: 8px; border: 1px solid #c8e6c9; }
+        .btnContador { width: 42px; height: 42px; border: none; background: #00695c; color: white; font-size: 22px; font-weight: bold; border-radius: 6px; cursor: pointer; }
+        .inputContador { font-weight: bold; font-size: 20px; width: 80px; text-align: center; color: #004d40; border: 1px solid #00695c; border-radius: 6px; padding: 6px; background: white; margin: 0 6px; }
+
+        /* Botón de Cámara */
+        .btnCamara { width: 100%; padding: 12px; background: #ef6c00; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .previewFoto { width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 12px; display: none; border: 2px solid #ef6c00; }
+
+        /* Botón Enviar WhatsApp */
+        .btnWhatsAppLogistica { width: 100%; padding: 14px; background: #25D366; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+
+        /* Histórico con opciones */
+        .cajaHistorialLocal { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px; font-size: 12px; margin-top: 8px; line-height: 1.4; }
+        .itemHistorialRegistro { border-bottom: 1px dashed #ccc; padding-bottom: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-start; }
+        .itemHistorialRegistro:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        
+        .chipsDiasConEntrega { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+        .chipDia { background: #e0f2f1; color: #00695c; border: 1px solid #00695c; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; cursor: pointer; }
+        .chipDia.activo { background: #00695c; color: white; }
+
+        .btnMiniEditar { background: #f57c00; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-right: 4px; }
+        .btnMiniBorrar { background: #c62828; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+
+        .itemGestionCliente { background: #f4fbfb; border: 1px solid #b2dfdb; padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+<div class="headerNavegacion">
+    <a href="index2.html" class="btnVolver">↩️ Volver a Puntos</a>
+    <span style="font-size: 13px; font-weight: bold; color: #004d40;">📦 Farinata - Nipotti</span>
+</div>
+
+<!-- SELECTOR CON CATEGORÍAS SEGÚN PLANILLA -->
+<div class="tarjetaContenedor">
+    <div class="tituloSeccion">🔍 Seleccionar Cliente Congelados</div>
+    <select id="selectClienteFicha" class="campoInput" onchange="cargarDatosClienteSeleccionado()"></select>
+</div>
+
+<!-- FICHA DETALLADA DEL CLIENTE -->
+<div class="tarjetaContenedor" id="bloqueFichaCliente">
+    <div class="tituloSeccion">📋 Ficha del Cliente</div>
+    
+    <div class="infoClienteBox">
+        <strong id="lblNombreCliente" style="font-size: 15px; color: #004d40;">Cargando...</strong><br>
+        📍 <b>Dirección:</b> <span id="lblDireccion">--</span><br>
+        🕒 <b>Horarios:</b> <span id="lblHorario">--</span><br>
+        📞 <b>Contacto:</b> <span id="lblTelefono">--</span><br>
+        ⏱️ <b>Última Demora Registrada:</b> <span id="lblTiempoParada" style="color: #2e7d32; font-weight: bold;">--</span>
+    </div>
+
+    <div class="gridAccionesCliente">
+        <a id="btnLlamarCliente" href="#" class="btnAccionFicha btnLlamar">📞 Llamar</a>
+        <a id="btnMapsCliente" href="#" target="_blank" class="btnAccionFicha btnMaps">🗺️ Ir con Maps</a>
+    </div>
+</div>
+
+<!-- FORMULARIO DE ENTREGA Y BULTOS -->
+<div class="tarjetaContenedor">
+    <div class="tituloSeccion">📦 Registro de Carga / Factura</div>
+
+    <div class="controlContador">
+        <span style="font-size:14px; font-weight:bold;">📦 Bultos / Cajas:</span>
+        <div style="display:flex; align-items:center;">
+            <button class="btnContador" onclick="modificarBultos(-1)">-</button>
+            <input type="number" id="valBultosInput" class="inputContador" value="0" min="0" onchange="validarBultosInput()">
+            <button class="btnContador" onclick="modificarBultos(1)">+</button>
+        </div>
+    </div>
+
+    <label style="font-size: 12px; font-weight: bold; color: #004d40;">📝 Devoluciones / Notas de Crédito / Obs:</label>
+    <textarea id="txtDevoluciones" class="campoInput" rows="2" placeholder="Ej: Devuelven 2 cajas por rotura. Piden Nota de Crédito."></textarea>
+
+    <!-- FOTO DE FACTURA -->
+    <label class="btnCamara">
+        📸 Sacar Foto a la Factura Firmada
+        <input type="file" id="inputCamaraFactura" accept="image/*" capture="environment" style="display: none;" onchange="procesarFotoFactura(event)">
+    </label>
+    <img id="imgPreviewFactura" class="previewFoto" alt="Factura firmada">
+
+    <!-- BOTÓN ENVÍO LOGÍSTICA SUPRA -->
+    <button class="btnWhatsAppLogistica" onclick="enviarReporteLogisticaSupra()">
+        📲 Enviar Reporte a Logística Supra
+    </button>
+</div>
+
+<!-- HISTORIAL HISTÓRICO CON CALENDARIO Y RESALTADO DE DÍAS -->
+<div class="tarjetaContenedor">
+    <div class="tituloSeccion">📅 Histórico de Entregas a este Local</div>
+    
+    <label style="font-size: 12px; font-weight: bold; color: #004d40;">Días con entregas registradas en este local:</label>
+    <div id="contenedorChipsDias" class="chipsDiasConEntrega"></div>
+
+    <label style="font-size: 12px; font-weight: bold; color: #004d40;">O seleccionar fecha en el calendario:</label>
+    <input type="date" id="inputFechaHistorialLocal" class="campoInput" onchange="cargarHistorialLocal()">
+
+    <div id="listaHistorialLocal" class="cajaHistorialLocal">Cargando historial...</div>
+</div>
+
+<!-- GESTIÓN DE CLIENTES (CRUD) -->
+<div class="tarjetaContenedor">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+        <div class="tituloSeccion" style="margin-bottom:0;">⚙️ Administrar Clientes</div>
+        <div style="display:flex; gap:6px;">
+            <button onclick="abrirFormNuevo()" style="background:#00695c; color:white; border:none; padding:6px 10px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer;">➕ Nuevo</button>
+            <button onclick="toggleListaEdicion()" style="background:#f57c00; color:white; border:none; padding:6px 10px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer;">✏️ Editar / Eliminar</button>
+        </div>
+    </div>
+
+    <!-- LISTA DE EDICIÓN RÁPIDA -->
+    <div id="contenedorListaEdicion" style="display: none; margin-top: 10px; max-height: 250px; overflow-y: auto;"></div>
+
+    <!-- FORMULARIO DE ALTA Y EDICIÓN -->
+    <div id="formNuevoCliente" style="display: none; background: #e0f2f1; padding: 12px; border-radius: 8px; margin-top: 10px;">
+        <input type="hidden" id="editandoIdCliente" value="">
+        
+        <label style="font-size: 11px; font-weight: bold;">Categoría:</label>
+        <select id="inputCatCli" class="campoInput">
+            <option value="retail">🛒 1. Supermercados / Retail</option>
+            <option value="mayorista">🏭 2. Clientes / Mayoristas</option>
+            <option value="logistica">🚚 3. Logística / Otros Clientes</option>
+        </select>
+
+        <label style="font-size: 11px; font-weight: bold;">Nombre del Cliente:</label>
+        <input type="text" id="inputNomCli" class="campoInput" placeholder="Ej: Oscar David">
+        
+        <label style="font-size: 11px; font-weight: bold;">Dirección / Domicilio:</label>
+        <input type="text" id="inputDirCli" class="campoInput" placeholder="Ej: Elpidio González 320">
+
+        <label style="font-size: 11px; font-weight: bold;">Coordenadas (Lat, Lon):</label>
+        <input type="text" id="inputCoordsCli" class="campoInput" placeholder="-32.9180, -68.8050">
+
+        <label style="font-size: 11px; font-weight: bold;">Horario de Recepción:</label>
+        <input type="text" id="inputHorarioCli" class="campoInput" placeholder="Ej: Lun a Vie 7 a 13 hs">
+
+        <label style="font-size: 11px; font-weight: bold;">Teléfono / Encargado:</label>
+        <input type="text" id="inputTelCli" class="campoInput" placeholder="Ej: 2615551234">
+
+        <button id="btnGuardarCliForm" onclick="guardarClienteNipotti()" style="width:100%; padding:10px; background:#2e7d32; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">💾 Guardar Cliente</button>
+        <button onclick="cerrarForm()" style="width:100%; padding:8px; background:#757575; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; margin-top:6px;">Cancelar</button>
+    </div>
+</div>
+
+<script>
+const CLIENTES_BASE_NIPOTTI = [
+    // 1. SUPERMERCADOS / RETAIL
+    { id: 101, categoria: "retail", nombre: "ModoMarket", direccion: "Viamonte 3415, Chacras de Coria", lat: -32.9812, lon: -68.8789, horario: "Lun a Vie 7 a 14 hs | Sáb 7 a 11 hs", tel: "" },
+    { id: 102, categoria: "retail", nombre: "Jumbo VP", direccion: "San Martín 6279, Luján de Cuyo", lat: -33.0034, lon: -68.8680, horario: "Lun a Sáb 7 a 14 hs", tel: "" },
+    { id: 103, categoria: "retail", nombre: "Jumbo MZA", direccion: "Balcarce 897, Godoy Cruz", lat: -32.923984, lon: -68.845831, horario: "Lun a Vie 7:30 a 14 hs | Sáb 7 a 13:30 hs", tel: "" },
+    { id: 104, categoria: "retail", nombre: "Vea Maipú", direccion: "Padre Vázquez 320, Maipú", lat: -32.9780, lon: -68.7880, horario: "Lun a Sáb 7 a 12 hs", tel: "" },
+    { id: 105, categoria: "retail", nombre: "Vea Dalvian", direccion: "Cerro Siete Colores 2400, B° Dalvian", lat: -32.8750, lon: -68.8800, horario: "8 a 15 hs (Recomendado Mar o Jue)", tel: "" },
+    { id: 106, categoria: "retail", nombre: "Vea Barraca", direccion: "La Barraca Mall, Las Cañas 1833", lat: -32.9100, lon: -68.8150, horario: "Lun a Sáb 9 a 14 hs", tel: "" },
+    { id: 107, categoria: "retail", nombre: "Vea Palmares", direccion: "Palmares Mall", lat: -32.9550, lon: -68.8550, horario: "8 a 15 hs", tel: "" },
+    { id: 108, categoria: "retail", nombre: "Vea Sarmiento", direccion: "Sarmiento 998, Godoy Cruz", lat: -32.9150, lon: -68.8400, horario: "Lun a Sáb 8 a 14 hs", tel: "" },
+    { id: 109, categoria: "retail", nombre: "Vea Paso de los Andes", direccion: "Paso de los Andes 82, Mendoza", lat: -32.8950, lon: -68.8580, horario: "Lun a Vie 7 a 12 hs", tel: "" },
+    { id: 110, categoria: "retail", nombre: "Vea Shopping", direccion: "Acceso Este, Lateral Norte 3200", lat: -32.8980, lon: -68.7900, horario: "Lun a Vie 7 a 14 hs", tel: "" },
+    { id: 111, categoria: "retail", nombre: "Vea Luján", direccion: "San Martín 880, Luján de Cuyo", lat: -33.0060, lon: -68.8710, horario: "Lun a Vie 7 a 15 hs | Sáb 7 a 12 hs", tel: "" },
+
+    // 2. CLIENTES / MAYORISTAS
+    { id: 112, categoria: "mayorista", nombre: "Oscar David", direccion: "Elpidio González 320", lat: -32.9180, lon: -68.8050, horario: "7 a 13 hs", tel: "" },
+    { id: 113, categoria: "mayorista", nombre: "Carnes de mi Campo CC", direccion: "Elpidio González 320", lat: -32.9180, lon: -68.8050, horario: "Mié a Sáb 11 a 13 hs | Lun y Mar a 1° hora hasta 12 hs", tel: "" },
+    { id: 114, categoria: "mayorista", nombre: "Carnes de mi Campo RP", direccion: "Carril Rodríguez Peña 1412, Godoy Cruz", lat: -32.9225, lon: -68.8010, horario: "Lun a Vie hasta las 20 hs", tel: "" },
+    { id: 115, categoria: "mayorista", nombre: "Roberto Graziatin", direccion: "Carril Rodríguez Peña 538", lat: -32.9220, lon: -68.8180, horario: "Lun a Sáb 7 a 13:30 hs", tel: "" },
+
+    // 3. LOGÍSTICA / OTROS CLIENTES
+    { id: 116, categoria: "logistica", nombre: "Moretti Dorrego", direccion: "Lamadrid 1611, Dorrego", lat: -32.9050, lon: -68.8250, horario: "Lun a Vie 8 a 21 hs", tel: "" },
+    { id: 117, categoria: "logistica", nombre: "Moretti Godoy Cruz", direccion: "Av. San Martín Sur 1039, Godoy Cruz", lat: -32.9300, lon: -68.8450, horario: "Lun a Vie 8 a 21 hs", tel: "" },
+    { id: 118, categoria: "logistica", nombre: "Moretti Boedo", direccion: "Vía Boedo", lat: -32.9900, lon: -68.8500, horario: "Lun a Sáb 8 a 18 hs", tel: "" },
+    { id: 119, categoria: "logistica", nombre: "Plazoleta Rutini", direccion: "Urquiza 1000, Maipú", lat: -32.9720, lon: -68.7800, horario: "Lun a Sáb 9:30 a 13:30 hs", tel: "" },
+    { id: 120, categoria: "logistica", nombre: "Club Jaf's", direccion: "Miguel Azcuénaga 1202, Villa Nueva", lat: -32.9000, lon: -68.7900, horario: "Lun a Vie 10 a 14 hs / 18 a 22 hs", tel: "" },
+    { id: 121, categoria: "logistica", nombre: "Lecker Panadería", direccion: "Bandera de los Andes 9554", lat: -32.9120, lon: -68.7300, horario: "Lun a Vie 9-13/16:30-21 | Sáb,Dom,Fer 9-14", tel: "" }
+];
+
+let clienteSeleccionadoActual = null;
+
+function obtenerFechaHoyISO() {
+    return new Date().toISOString().split('T')[0];
+}
+
+function obtenerHora24hs() {
+    const ahora = new Date();
+    const hs = String(ahora.getHours()).padStart(2, '0');
+    const mins = String(ahora.getMinutes()).padStart(2, '0');
+    return `${hs}:${mins}`;
+}
+
+function inicializarClientes() {
+    let clientesGuardados = JSON.parse(localStorage.getItem("clientes_nipotti_congelados"));
+    if (!clientesGuardados || clientesGuardados.length === 0) {
+        localStorage.setItem("clientes_nipotti_congelados", JSON.stringify(CLIENTES_BASE_NIPOTTI));
+        clientesGuardados = CLIENTES_BASE_NIPOTTI;
+    }
+
+    document.getElementById("inputFechaHistorialLocal").value = obtenerFechaHoyISO();
+
+    sincronizarConPuntosIndex2(clientesGuardados);
+    poblarSelectorClientes(clientesGuardados);
+}
+
+function sincronizarConPuntosIndex2(listaNipotti) {
+    let puntosIndex2 = JSON.parse(localStorage.getItem("puntos_entrega") || "[]");
+    let huboCambios = false;
+
+    listaNipotti.forEach(cn => {
+        const existe = puntosIndex2.find(p => p.id == cn.id || p.nombre.toLowerCase() === cn.nombre.toLowerCase());
+        if (!existe) {
+            puntosIndex2.push({
+                id: cn.id,
+                tipo: "caja",
+                nombre: cn.nombre,
+                lat: cn.lat,
+                lon: cn.lon,
+                minutosDetencion: 5,
+                horaLlegada: null,
+                horaSalida: null,
+                tiempoPermanencia: null
+            });
+            huboCambios = true;
+        }
+    });
+
+    if (huboCambios) {
+        localStorage.setItem("puntos_entrega", JSON.stringify(puntosIndex2));
+    }
+}
+
+function poblarSelectorClientes(lista) {
+    const select = document.getElementById("selectClienteFicha");
+    select.innerHTML = "";
+
+    const optGroupRetail = document.createElement("optgroup");
+    optGroupRetail.label = "🛒 1. SUPERMERCADOS / RETAIL";
+
+    const optGroupMayorista = document.createElement("optgroup");
+    optGroupMayorista.label = "🏭 2. CLIENTES / MAYORISTAS";
+
+    const optGroupLogistica = document.createElement("optgroup");
+    optGroupLogistica.label = "🚚 3. LOGÍSTICA / OTROS CLIENTES";
+
+    lista.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.innerText = c.nombre;
+
+        const cat = c.categoria || "retail";
+        if (cat === "retail") optGroupRetail.appendChild(opt);
+        else if (cat === "mayorista") optGroupMayorista.appendChild(opt);
+        else optGroupLogistica.appendChild(opt);
+    });
+
+    select.appendChild(optGroupRetail);
+    select.appendChild(optGroupMayorista);
+    select.appendChild(optGroupLogistica);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const idParam = urlParams.get('id');
+    if (idParam) select.value = idParam;
+
+    cargarDatosClienteSeleccionado();
+}
+
+function cargarDatosClienteSeleccionado() {
+    const idSel = document.getElementById("selectClienteFicha").value;
+    const lista = JSON.parse(localStorage.getItem("clientes_nipotti_congelados") || "[]");
+    const puntosMap = JSON.parse(localStorage.getItem("puntos_entrega") || "[]");
+
+    const cliente = lista.find(c => c.id == idSel);
+    if (!cliente) return;
+
+    clienteSeleccionadoActual = cliente;
+
+    const puntoMap = puntosMap.find(p => p.id == cliente.id || p.nombre.toLowerCase() === cliente.nombre.toLowerCase());
+    const tiempoRegistrado = (puntoMap && puntoMap.tiempoPermanencia) ? puntoMap.tiempoPermanencia : "Sin registrar parada hoy";
+
+    document.getElementById("lblNombreCliente").innerText = cliente.nombre;
+    document.getElementById("lblDireccion").innerText = cliente.direccion || "Sin dirección cargada";
+    document.getElementById("lblHorario").innerText = cliente.horario || "Sin especificar";
+    document.getElementById("lblTelefono").innerText = cliente.tel || "Sin teléfono";
+    document.getElementById("lblTiempoParada").innerText = tiempoRegistrado;
+
+    const btnLlamar = document.getElementById("btnLlamarCliente");
+    if (cliente.tel) {
+        btnLlamar.href = `tel:${cliente.tel}`;
+        btnLlamar.style.opacity = "1";
+    } else {
+        btnLlamar.href = "#";
+        btnLlamar.style.opacity = "0.5";
+    }
+
+    const btnMaps = document.getElementById("btnMapsCliente");
+    if (cliente.lat && cliente.lon) {
+        btnMaps.href = `https://www.google.com/maps/search/?api=1&query=${cliente.lat},${cliente.lon}`;
+    } else {
+        btnMaps.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cliente.direccion + ", Mendoza")}`;
+    }
+
+    renderizarChipsDias();
+    cargarHistorialLocal();
+}
+
+function modificarBultos(delta) {
+    const input = document.getElementById("valBultosInput");
+    let val = parseInt(input.value) || 0;
+    val = Math.max(0, val + delta);
+    input.value = val;
+}
+
+function validarBultosInput() {
+    const input = document.getElementById("valBultosInput");
+    let val = parseInt(input.value);
+    if (isNaN(val) || val < 0) input.value = 0;
+}
+
+function procesarFotoFactura(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.getElementById("imgPreviewFactura");
+            img.src = e.target.result;
+            img.style.display = "block";
+        }
+        reader.readAsDataURL(file);
+    }
+}
+
+function renderizarChipsDias() {
+    if (!clienteSeleccionadoActual) return;
+    const cont = document.getElementById("contenedorChipsDias");
+    const fechaActual = document.getElementById("inputFechaHistorialLocal").value;
+
+    let historialGlobal = JSON.parse(localStorage.getItem("historico_entregas_locales") || "{}");
+    const lista = historialGlobal[clienteSeleccionadoActual.id] || [];
+
+    // Obtener días únicos con entregas
+    const diasUnicos = [...new Set(lista.map(i => i.fechaISO))].sort().reverse();
+
+    if (diasUnicos.length === 0) {
+        cont.innerHTML = `<span style="font-size:11px; color:#888;">Sin historial previo registrado</span>`;
+        return;
+    }
+
+    let html = "";
+    diasUnicos.forEach(dISO => {
+        const [a, m, d] = dISO.split('-');
+        const esActivo = dISO === fechaActual ? 'activo' : '';
+        html += `<span class="chipDia ${esActivo}" onclick="seleccionarFechaDesdeChip('${dISO}')">📅 ${d}/${m}</span>`;
+    });
+    cont.innerHTML = html;
+}
+
+function seleccionarFechaDesdeChip(fechaISO) {
+    document.getElementById("inputFechaHistorialLocal").value = fechaISO;
+    renderizarChipsDias();
+    cargarHistorialLocal();
+}
+
+function guardarEnHistóricoLocal(clienteId, bultos, dev, fechaISO, hora24) {
+    let historialGlobal = JSON.parse(localStorage.getItem("historico_entregas_locales") || "{}");
+    if (!historialGlobal[clienteId]) historialGlobal[clienteId] = [];
+
+    historialGlobal[clienteId].unshift({
+        id: Date.now(),
+        fechaISO,
+        hora: hora24,
+        bultos,
+        dev
+    });
+
+    localStorage.setItem("historico_entregas_locales", JSON.stringify(historialGlobal));
+    renderizarChipsDias();
+    cargarHistorialLocal();
+}
+
+function cargarHistorialLocal() {
+    if (!clienteSeleccionadoActual) return;
+
+    const caja = document.getElementById("listaHistorialLocal");
+    const fechaSeleccionada = document.getElementById("inputFechaHistorialLocal").value;
+
+    let historialGlobal = JSON.parse(localStorage.getItem("historico_entregas_locales") || "{}");
+    const lista = historialGlobal[clienteSeleccionadoActual.id] || [];
+
+    const entregasDelDia = lista.filter(item => item.fechaISO === fechaSeleccionada);
+
+    if (entregasDelDia.length === 0) {
+        const [a, m, d] = fechaSeleccionada.split('-');
+        caja.innerHTML = `Sin entregas registradas en <b>${clienteSeleccionadoActual.nombre}</b> para el día <b>${d}/${m}/${a}</b>.`;
+        return;
+    }
+
+    let html = "";
+    entregasDelDia.forEach(item => {
+        const [a, m, d] = item.fechaISO.split('-');
+        html += `
+            <div class="itemHistorialRegistro">
+                <div>
+                    <b>📆 ${d}/${m}/${a} (${item.hora} hs)</b><br>
+                    📦 <b>Bultos:</b> ${item.bultos} cajas<br>
+                    ${item.dev ? `⚠️ <b>Obs:</b> ${item.dev}` : '✅ Entregado OK'}
+                </div>
+                <div>
+                    <button class="btnMiniEditar" onclick="editarRegistroHistorial(${item.id})">✏️</button>
+                    <button class="btnMiniBorrar" onclick="eliminarRegistroHistorial(${item.id})">🗑️</button>
+                </div>
+            </div>
+        `;
+    });
+    caja.innerHTML = html;
+}
+
+function editarRegistroHistorial(idReg) {
+    let historialGlobal = JSON.parse(localStorage.getItem("historico_entregas_locales") || "{}");
+    const lista = historialGlobal[clienteSeleccionadoActual.id] || [];
+    const reg = lista.find(r => r.id === idReg);
+
+    if (!reg) return;
+
+    const nuevosBultos = prompt("Modificar cantidad de bultos:", reg.bultos);
+    if (nuevosBultos === null) return;
+
+    const nuevasObs = prompt("Modificar observaciones / devoluciones:", reg.dev || "");
+    if (nuevasObs === null) return;
+
+    reg.bultos = parseInt(nuevosBultos) || 0;
+    reg.dev = nuevasObs.trim();
+
+    localStorage.setItem("historico_entregas_locales", JSON.stringify(historialGlobal));
+    cargarHistorialLocal();
+}
+
+function eliminarRegistroHistorial(idReg) {
+    if (confirm("¿Estás seguro de eliminar esta entrega del historial?")) {
+        let historialGlobal = JSON.parse(localStorage.getItem("historico_entregas_locales") || "{}");
+        historialGlobal[clienteSeleccionadoActual.id] = (historialGlobal[clienteSeleccionadoActual.id] || []).filter(r => r.id !== idReg);
+
+        localStorage.setItem("historico_entregas_locales", JSON.stringify(historialGlobal));
+        renderizarChipsDias();
+        cargarHistorialLocal();
+    }
+}
+
+function enviarReporteLogisticaSupra() {
+    if (!clienteSeleccionadoActual) {
+        alert("Por favor seleccioná un cliente.");
+        return;
+    }
+
+    const bultosVal = parseInt(document.getElementById("valBultosInput").value) || 0;
+    const dev = document.getElementById("txtDevoluciones").value.trim();
+    const hoyISO = obtenerFechaHoyISO();
+    const horaActual = obtenerHora24hs();
+
+    guardarEnHistóricoLocal(clienteSeleccionadoActual.id, bultosVal, dev, hoyISO, horaActual);
+
+    const [a, m, d] = hoyISO.split('-');
+    const fechaFormateada = `${d}/${m}/${a}`;
+
+    let texto = `*📍 REPORTE DE CONGELADOS - LOGÍSTICA SUPRA*\n`;
+    texto += `*Cliente:* ${clienteSeleccionadoActual.nombre}\n`;
+    texto += `*Fecha/Hora:* ${fechaFormateada} - ${horaActual} hs\n`;
+    texto += `*⏱️ Demora en parada:* ${document.getElementById("lblTiempoParada").innerText}\n`;
+    texto += `*📦 Bultos Entregados:* ${bultosVal} cajas\n`;
+    
+    if (dev !== "") {
+        texto += `\n⚠️ *Devolución / Nota de Crédito:* ${dev}\n`;
+    } else {
+        texto += `*Estado:* Entregado OK ✅\n`;
+    }
+
+    texto += `\n📸 _Adjunto foto de factura/remito firmada._`;
+
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
+    window.open(url, '_blank');
+}
+
+/* FUNCIONES DE GESTIÓN DE CLIENTES */
+
+function abrirFormNuevo() {
+    document.getElementById("editandoIdCliente").value = "";
+    document.getElementById("inputNomCli").value = "";
+    document.getElementById("inputDirCli").value = "";
+    document.getElementById("inputCoordsCli").value = "";
+    document.getElementById("inputHorarioCli").value = "";
+    document.getElementById("inputTelCli").value = "";
+    document.getElementById("btnGuardarCliForm").innerText = "💾 Guardar Nuevo Cliente";
+    
+    document.getElementById("contenedorListaEdicion").style.display = "none";
+    document.getElementById("formNuevoCliente").style.display = "block";
+}
+
+function toggleListaEdicion() {
+    const cont = document.getElementById("contenedorListaEdicion");
+    document.getElementById("formNuevoCliente").style.display = "none";
+
+    if (cont.style.display === "none") {
+        renderizarListaEdicion();
+        cont.style.display = "block";
+    } else {
+        cont.style.display = "none";
+    }
+}
+
+function renderizarListaEdicion() {
+    const cont = document.getElementById("contenedorListaEdicion");
+    const lista = JSON.parse(localStorage.getItem("clientes_nipotti_congelados") || "[]");
+
+    if (lista.length === 0) {
+        cont.innerHTML = `<div style="font-size:12px; color:#666;">No hay clientes para editar.</div>`;
+        return;
+    }
+
+    let html = "";
+    lista.forEach(c => {
+        html += `
+            <div class="itemGestionCliente">
+                <span><b>${c.nombre}</b> <small style="color:#666;">(${c.categoria || 'retail'})</small></span>
+                <div>
+                    <button class="btnMiniEditar" onclick="prepararEdicionCliente(${c.id})">✏️</button>
+                    <button class="btnMiniBorrar" onclick="borrarClienteNipotti(${c.id})">🗑️</button>
+                </div>
+            </div>
+        `;
+    });
+    cont.innerHTML = html;
+}
+
+function prepararEdicionCliente(id) {
+    const lista = JSON.parse(localStorage.getItem("clientes_nipotti_congelados") || "[]");
+    const c = lista.find(item => item.id == id);
+    if (!c) return;
+
+    document.getElementById("editandoIdCliente").value = c.id;
+    document.getElementById("inputCatCli").value = c.categoria || "retail";
+    document.getElementById("inputNomCli").value = c.nombre || "";
+    document.getElementById("inputDirCli").value = c.direccion || "";
+    document.getElementById("inputCoordsCli").value = (c.lat && c.lon) ? `${c.lat}, ${c.lon}` : "";
+    document.getElementById("inputHorarioCli").value = c.horario || "";
+    document.getElementById("inputTelCli").value = c.tel || "";
+
+    document.getElementById("btnGuardarCliForm").innerText = "💾 Actualizar Cliente";
+    document.getElementById("contenedorListaEdicion").style.display = "none";
+    document.getElementById("formNuevoCliente").style.display = "block";
+}
+
+function borrarClienteNipotti(id) {
+    if (confirm("¿Estás seguro de eliminar este cliente?")) {
+        let lista = JSON.parse(localStorage.getItem("clientes_nipotti_congelados") || "[]");
+        lista = lista.filter(c => c.id != id);
+        localStorage.setItem("clientes_nipotti_congelados", JSON.stringify(lista));
+        renderizarListaEdicion();
+        poblarSelectorClientes(lista);
+    }
+}
+
+function cerrarForm() {
+    document.getElementById("formNuevoCliente").style.display = "none";
+}
+
+function guardarClienteNipotti() {
+    const editId = document.getElementById("editandoIdCliente").value;
+    const cat = document.getElementById("inputCatCli").value;
+    const nom = document.getElementById("inputNomCli").value.trim();
+    const dir = document.getElementById("inputDirCli").value.trim();
+    const coordsStr = document.getElementById("inputCoordsCli").value.trim();
+    const hor = document.getElementById("inputHorarioCli").value.trim();
+    const tel = document.getElementById("inputTelCli").value.trim();
+
+    if (!nom) {
+        alert("Ingresá al menos el nombre del cliente.");
+        return;
+    }
+
+    let lat = null, lon = null;
+    if (coordsStr.includes(",")) {
+        const partes = coordsStr.split(",");
+        lat = parseFloat(partes[0]);
+        lon = parseFloat(partes[1]);
+    }
+
+    let lista = JSON.parse(localStorage.getItem("clientes_nipotti_congelados") || "[]");
+
+    if (editId) {
+        lista = lista.map(c => c.id == editId ? { ...c, categoria: cat, nombre: nom, direccion: dir, lat: lat, lon: lon, horario: hor, tel: tel } : c);
+    } else {
+        const nuevoObj = {
+            id: Date.now(),
+            categoria: cat,
+            nombre: nom,
+            direccion: dir,
+            lat: lat,
+            lon: lon,
+            horario: hor,
+            tel: tel
+        };
+        lista.push(nuevoObj);
+    }
+
+    localStorage.setItem("clientes_nipotti_congelados", JSON.stringify(lista));
+    sincronizarConPuntosIndex2(lista);
+
+    alert("✅ Cliente guardado con éxito.");
+    cerrarForm();
+    poblarSelectorClientes(lista);
+}
+
+window.onload = () => {
+    inicializarClientes();
+};
+</script>
+
+</body>
+</html>

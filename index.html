@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Principal</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+        }
+
+        #mapa {
+            height: calc(100vh - 250px);
+            width: 100%;
+        }
+
+        #panel-app {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 250px;
+            background: white;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            z-index: 1000;
+        }
+
+        #estado-gps {
+            background: #e6f7ff;
+            border: 1px solid #91d5ff;
+            color: #0050b3;
+            text-align: center;
+            padding: 6px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .fila-botones {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s, opacity 0.2s;
+        }
+
+        .btn-verde { background-color: #52c41a; }
+        .btn-verde:hover { background-color: #73d13d; }
+        .btn-rojo { background-color: #ff4d4f; }
+        .btn-rojo:hover { background-color: #ff7875; }
+
+        .btn[disabled] {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #bfbfbf;
+        }
+
+        .panel-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 10px 15px;
+            background: #f5f5f5;
+            border-radius: 10px;
+        }
+
+        #velocimetro-panel {
+            text-align: center;
+        }
+
+        #valorVelocidad {
+            font-size: 34px;
+            font-weight: 800;
+            color: #1890ff;
+            line-height: 1;
+        }
+
+        #unidadVelocidad {
+            font-size: 13px;
+            font-weight: 700;
+            color: #595959;
+            margin-left: 2px;
+        }
+
+        #distancia-panel {
+            font-size: 16px;
+            font-weight: 700;
+            color: #595959;
+        }
+
+        .fila-enlaces {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-enlace {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: background-color 0.2s;
+            text-align: center;
+        }
+
+        .btn-azul { background-color: #1890ff; }
+        .btn-azul:hover { background-color: #40a9ff; }
+        .btn-naranja { background-color: #fa8c16; }
+        .btn-naranja:hover { background-color: #ffa940; }
+    </style>
+</head>
+<body>
+
+    <div id="mapa"></div>
+
+    <div id="panel-app">
+        <div id="estado-gps">
+            <span id="indicador-estado">🟢 GPS activo | Precisión: -- m</span>
+        </div>
+
+        <div class="fila-botones">
+            <button id="btnIniciarRecorrido" class="btn btn-verde">
+                <span class="icono">▶️</span> Iniciar Recorrido
+            </button>
+            <button id="btnFinalizarRecorrido" class="btn btn-rojo" disabled>
+                <span class="icono">⏹️</span> Finalizar Recorrido
+            </button>
+        </div>
+
+        <div class="panel-info">
+            <div id="velocimetro-panel">
+                <span id="valorVelocidad">0</span>
+                <span id="unidadVelocidad">KM/H</span>
+            </div>
+            <div id="distancia-panel">
+                <span id="distancia">Distancia: 0.00 km</span>
+            </div>
+        </div>
+
+        <div class="fila-enlaces">
+            <a href="index2.html" class="btn-enlace btn-azul">
+                <span class="icono">💼</span> Trabajo y Entregas
+            </a>
+            <a href="index3.html" class="btn-enlace btn-naranja">
+                <span class="icono">🕒</span> Historial Recorridos
+            </a>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+    const BASE_SUPRA = { lat: -32.9391230, lon: -68.8149017, nombre: "Base Supra" };
+
+    const mapa = L.map('mapa', { preferCanvas: true }).setView([BASE_SUPRA.lat, BASE_SUPRA.lon], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, crossOrigin: true, attribution: '&copy; OpenStreetMap' }).addTo(mapa);
+
+    let marcadorGPS = null;
+    let marcadorInicio = null;
+    let marcadorFin = null;
+    let ultimaUbicacionGPS = null; 
+    let ultimaPosicionConTiempo = null; 
+
+    const puntosRecorrido = []; 
+    let lineaRecorrido = L.polyline([], { color: '#1890ff', weight: 5, opacity: 0.8 }).addTo(mapa);
+    let distanciaTotal = 0;
+    let tiempoInicioRecorrido = null;
+    let grabandoRecorrido = false;
+
+    let seguirGPS = true; 
+    let primeraUbicacion = true;
+
+    const iconoBase = L.divIcon({
+        html: `<div style="font-size: 28px; text-shadow: 0 2px 5px rgba(0,0,0,0.5);">🏢</div>`,
+        className: 'icono-cliente-emoji',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+    });
+    L.marker([BASE_SUPRA.lat, BASE_SUPRA.lon], { icon: iconoBase }).addTo(mapa).bindPopup("<b>🏢 Base Supra</b>");
+
+    function crearIconoEmoji(emoji) {
+        return L.divIcon({ html: `<div style="font-size: 26px; text-shadow: 0 2px 5px rgba(0,0,0,0.5);">${emoji}</div>`, className: 'icono-cliente-emoji', iconSize: [30, 30], iconAnchor: [15, 15] });
+    }
+
+    function actualizarInterfazDistancia() {
+        document.getElementById("distancia").textContent = "Distancia: " + (distanciaTotal / 1000).toFixed(2) + " km";
+    }
+
+    function calcularDistancia(lat1, lon1, lat2, lon2) {
+        const R = 6371000, rad = Math.PI / 180;
+        const dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+    }
+
+    function recibirUbicacion(position) {
+        const latitud = position.coords.latitude;
+        const longitud = position.coords.longitude;
+        const precision = position.coords.accuracy;
+        const tiempoActual = Date.now();
+        
+        ultimaUbicacionGPS = [latitud, longitud];
+
+        let velocidadFinal = 0;
+        if (position.coords.speed !== null && position.coords.speed >= 0) {
+            velocidadFinal = Math.round(position.coords.speed * 3.6);
+        } else if (ultimaPosicionConTiempo) {
+            const distMts = calcularDistancia(ultimaPosicionConTiempo.lat, ultimaPosicionConTiempo.lon, latitud, longitud);
+            const tiempoSegs = (tiempoActual - ultimaPosicionConTiempo.tiempo) / 1000;
+            if (tiempoSegs > 0) velocidadFinal = Math.round((distMts / tiempoSegs) * 3.6);
+        }
+        if (velocidadFinal < 2) velocidadFinal = 0; 
+        document.getElementById("valorVelocidad").textContent = velocidadFinal;
+
+        ultimaPosicionConTiempo = { lat: latitud, lon: longitud, tiempo: tiempoActual };
+
+        if (!marcadorGPS) {
+            marcadorGPS = L.marker([latitud, longitud]).addTo(mapa).bindPopup("📍 Mi ubicación");
+        } else { 
+            marcadorGPS.setLatLng([latitud, longitud]); 
+        }
+
+        if (primeraUbicacion) { 
+            mapa.setView([latitud, longitud], 17); 
+            primeraUbicacion = false; 
+        }
+        if (seguirGPS) {
+            mapa.panTo([latitud, longitud], { animate: true });
+        }
+
+        if (!grabandoRecorrido) {
+            document.getElementById("indicador-estado").textContent = "🟢 GPS activo | Precisión: " + precision.toFixed(0) + " m";
+            document.getElementById("indicador-estado").style.color = "#0050b3";
+        }
+    }
+
+    function iniciarGrabacion() {
+        if (grabandoRecorrido) return;
+
+        grabandoRecorrido = true;
+        distanciaTotal = 0;
+        puntosRecorrido.length = 0;
+        tiempoInicioRecorrido = Date.now();
+
+        document.getElementById("btnIniciarRecorrido").disabled = true;
+        document.getElementById("btnFinalizarRecorrido").disabled = false;
+        actualizarInterfazDistancia();
+        document.getElementById("valorVelocidad").textContent = "0";
+        document.getElementById("indicador-estado").textContent = "🔵 Grabando recorrido...";
+        document.getElementById("indicador-estado").style.color = "#1890ff";
+
+        if (marcadorInicio) { mapa.removeLayer(marcadorInicio); marcadorInicio = null; }
+        if (marcadorFin) { mapa.removeLayer(marcadorFin); marcadorFin = null; }
+        lineaRecorrido.setLatLngs([]);
+
+        if (ultimaUbicacionGPS) {
+            puntosRecorrido.push(ultimaUbicacionGPS);
+            lineaRecorrido.setLatLngs(puntosRecorrido);
+            marcadorInicio = L.marker(ultimaUbicacionGPS, { icon: crearIconoEmoji('🚩') }).addTo(mapa);
+        }
+    }
+
+    function grabarPuntoRecorrido(position) {
+        if (!grabandoRecorrido) return;
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const puntoNuevo = [lat, lon];
+
+        if (puntosRecorrido.length > 0) {
+            const ultimoPunto = puntosRecorrido[puntosRecorrido.length - 1];
+            const distMov = calcularDistancia(ultimoPunto[0], ultimoPunto[1], lat, lon);
+            
+            if (distMov > 2) {
+                distanciaTotal += distMov;
+                puntosRecorrido.push(puntoNuevo);
+                lineaRecorrido.setLatLngs(puntosRecorrido);
+                actualizarInterfazDistancia();
+            }
+        } else {
+            puntosRecorrido.push(puntoNuevo);
+            lineaRecorrido.setLatLngs(puntosRecorrido);
+            if (!marcadorInicio) {
+                marcadorInicio = L.marker(puntoNuevo, { icon: crearIconoEmoji('🚩') }).addTo(mapa);
+            }
+        }
+    }
+
+    function finalizarGrabacion() {
+        if (!grabandoRecorrido) return;
+
+        grabandoRecorrido = false;
+        document.getElementById("btnIniciarRecorrido").disabled = false;
+        document.getElementById("btnFinalizarRecorrido").disabled = true;
+
+        if (puntosRecorrido.length > 0) {
+            const fecha = new Date(tiempoInicioRecorrido);
+            const claveRecorrido = "recorrido_" + fecha.getFullYear() + "-" + 
+                String(fecha.getMonth() + 1).padStart(2, "0") + "-" + 
+                String(fecha.getDate()).padStart(2, "0") + "_" + 
+                String(fecha.getHours()).padStart(2, "0") + "-" + 
+                String(fecha.getMinutes()).padStart(2, "0") + "-" + 
+                String(fecha.getSeconds()).padStart(2, "0");
+
+            const datosRecorrido = {
+                fecha: fecha.toISOString(),
+                distancia: distanciaTotal,
+                puntos: [...puntosRecorrido]
+            };
+
+            localStorage.setItem(claveRecorrido, JSON.stringify(datosRecorrido));
+            alert("✅ Recorrido guardado correctamente en el historial.");
+        } else {
+            alert("⚠️ No se registraron puntos para guardar.");
+        }
+
+        lineaRecorrido.setLatLngs([]);
+        if (marcadorInicio) { mapa.removeLayer(marcadorInicio); marcadorInicio = null; }
+        if (marcadorFin) { mapa.removeLayer(marcadorFin); marcadorFin = null; }
+
+        distanciaTotal = 0;
+        puntosRecorrido.length = 0;
+        actualizarInterfazDistancia();
+        document.getElementById("indicador-estado").textContent = "🟢 GPS activo";
+        document.getElementById("indicador-estado").style.color = "#0050b3";
+    }
+
+    window.onload = function() {
+        if ("geolocation" in navigator) {
+            navigator.geolocation.watchPosition(
+                (pos) => {
+                    recibirUbicacion(pos);
+                    if (grabandoRecorrido) grabarPuntoRecorrido(pos);
+                },
+                (e) => {
+                    console.log("Error de GPS:", e);
+                    document.getElementById("indicador-estado").textContent = "⚠️ Error obteniendo GPS";
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+
+        document.getElementById("btnIniciarRecorrido").onclick = iniciarGrabacion;
+        document.getElementById("btnFinalizarRecorrido").onclick = finalizarGrabacion;
+    };
+
+    mapa.on('dragstart', () => seguirGPS = false);
+    mapa.on('click', () => seguirGPS = true);
+    </script>
+</body>
+</html>

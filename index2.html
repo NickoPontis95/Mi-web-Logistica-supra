@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trabajo y Puntos de Entrega</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; background: #e0f2f1; padding-bottom: 30px; }
+        
+        #mapaModulo { 
+            width: 100%; 
+            height: 35vh; 
+            position: relative; 
+            transition: all 0.3s ease;
+            z-index: 1;
+        }
+
+        #mapaModulo.mapa-fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+        }
+
+        #btnVolverAEnfoque { display: none; position: absolute; bottom: 15px; left: 15px; z-index: 1000; background: #00695c; color: white; border: none; padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.4); cursor: pointer; }
+
+        .controlesMapaFlotantes {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+        }
+
+        .btnMapaFlotante {
+            background: #ffffff;
+            color: #004d40;
+            border: 3px solid #004d40;
+            border-radius: 10px;
+            width: 44px;
+            height: 44px;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+            cursor: pointer;
+            outline: none;
+        }
+        .btnMapaFlotante:active { transform: scale(0.95); background: #e0f2f1; }
+
+        .contenedorAcordeones { padding: 12px; }
+        .tarjetaAcordeon { background: white; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); overflow: hidden; }
+        .btnAcordeon { width: 100%; background: white; border: none; outline: none; padding: 14px 16px; text-align: left; font-size: 16px; font-weight: bold; color: #004d40; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-bottom: 1px solid #e0f2f1; }
+        .btnAcordeon:after { content: '▼'; font-size: 12px; color: #00695c; transition: transform 0.3s; }
+        .btnAcordeon.activo:after { transform: rotate(180deg); }
+
+        .contenidoAcordeon { display: none; padding: 15px; background: #fafafa; }
+        .contenidoAcordeon.abierto { display: block; }
+
+        /* Sub-acordeones destacados visualmente */
+        .subAcordeonContenedor {
+            border-radius: 8px;
+            margin: 10px 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .subAcordeonContenedor.abierto {
+            border: 1px solid #80cbd2;
+            box-shadow: 0 4px 12px rgba(0, 77, 64, 0.12);
+            background: #ffffff;
+        }
+
+        .subAcordeonHeader { 
+            background: #e0f2f1; 
+            border-left: 6px solid #00695c; 
+            padding: 12px; 
+            font-weight: bold; 
+            color: #004d40; 
+            font-size: 14px; 
+            border-radius: 6px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            cursor: pointer; 
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .subAcordeonHeader:active {
+            background: #b2dfdb;
+        }
+
+        .flechaSub {
+            font-size: 11px;
+            transition: transform 0.3s ease;
+            display: inline-block;
+        }
+
+        .subAcordeonContenedor.abierto .flechaSub {
+            transform: rotate(180deg);
+        }
+
+        .subAcordeonBody { 
+            display: none; 
+            padding: 10px; 
+            background: #f4fbfb;
+            border-top: 1px solid #b2dfdb;
+        }
+
+        .subAcordeonBody.abierto { 
+            display: block; 
+        }
+
+        .campoInput { width: 100%; padding: 10px; margin: 6px 0 12px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+        .btnAccion { width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-bottom: 10px; font-size: 14px; }
+        .btnFicharEntrada { background: #2e7d32; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.15); }
+        .btnFicharSalida { background: #c62828; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.15); }
+        .btnGuardarPunto { background: #2e7d32; color: white; }
+        
+        .itemClienteContenedor { background: white; border: 1px solid #b2dfdb; border-left: 5px solid #00695c; border-radius: 6px; margin-bottom: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .itemClienteCabecera { padding: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .accionesItem { display: flex; gap: 6px; align-items: center; }
+        .btnEditar { background: #f57c00; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .btnBorrar { background: #c62828; color: white; border: none; padding: 6px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        
+        .sublistaEnvases { display: none; padding: 12px; background: #e8f5e9; border-top: 1px dashed #a5d6a7; }
+        .sublistaEnvases.abierta { display: block; }
+        .controlContador { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: white; padding: 6px 12px; border-radius: 6px; border: 1px solid #c8e6c9; }
+        .btnContador { width: 32px; height: 32px; border: none; background: #00695c; color: white; font-size: 18px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+        .valContador { font-weight: bold; font-size: 16px; min-width: 30px; text-align: center; }
+        .btnWhatsApp { background: #25D366; color: white; font-weight: bold; border: none; padding: 10px; border-radius: 6px; width: 100%; margin-top: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px; font-size: 14px; }
+
+        .accionesResumenHistorial { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .btnResumenAccion { flex: 1; min-width: 120px; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px; font-size: 13px; color: white; }
+
+        .cajaResumenHistorial { background: white; border: 1px solid #b2dfdb; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 13px; white-space: pre-wrap; line-height: 1.4; color: #004d40; margin-top: 10px; }
+
+        .itemHistorialFichado { background: #ffffff; border: 1px solid #b2dfdb; border-radius: 6px; padding: 12px; font-size: 13px; color: #004d40; line-height: 1.5; }
+        .badgeAdvertencia { display: inline-block; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-top: 4px; }
+
+        .btnVolverGPS { display: block; width: calc(100% - 24px); margin: 10px 12px 20px 12px; padding: 14px; background: #1976d2; color: white; text-align: center; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+        .icono-emoji-mapa { background: none; border: none; }
+
+        .tarjetaControlHorario { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 12px; margin-top: 10px; }
+        .gridBotonesOpcion { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+        .btnOpcionChico { padding: 8px; border: 1px solid #00695c; background: white; color: #00695c; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; }
+        .btnOpcionChico.activo { background: #00695c; color: white; }
+    </style>
+</head>
+<body>
+
+<div id="mapaModulo">
+    <div class="controlesMapaFlotantes">
+        <button id="btnMiUbicacionMapa" class="btnMapaFlotante" title="Ir a mi ubicación GPS">
+            <svg viewBox="0 0 512 512" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#c62828" d="M256 0C114.615 0 0 114.615 0 256s114.615 256 256 256 256-114.615 256-256S397.385 0 256 0zm0 472.308C136.923 472.308 39.692 375.077 39.692 256S136.923 39.692 256 39.692 472.308 136.923 472.308 256 375.077 472.308 256 472.308z"/>
+                <path fill="#c62828" d="M256 118.154V39.692h-39.692v78.462C147.692 124 124 147.692 118.154 216.308H39.692v39.692h78.462C124 324.308 147.692 348 216.308 353.846v78.462h39.692v-78.462c68.615-5.846 92.308-29.538 98.154-98.154h78.462v-39.692h-78.462c-5.846-68.615-29.538-92.308-98.154-98.154zM256 313.846c-31.969 0-57.846-25.877-57.846-57.846s25.877-57.846 57.846-57.846 57.846 25.877 57.846 57.846-25.877 57.846-57.846 57.846z"/>
+            </svg>
+        </button>
+        <button id="btnToggleFullscreen" class="btnMapaFlotante" title="Agrandar / Achicar Mapa">🔲</button>
+    </div>
+    <button id="btnVolverAEnfoque">📍 Centrar en Mi Base</button>
+</div>
+
+<div class="contenedorAcordeones">
+
+    <!-- 1. BASE (SUPRA PLANTA DE ELABORACIÓN) -->
+    <div class="tarjetaAcordeon">
+        <button class="btnAcordeon">🏢 Supra (Fichado y Control de Horas)</button>
+        <div class="contenidoAcordeon abierto">
+            <div id="textoEstadoBase" style="font-weight: bold; color: #d32f2f; margin-bottom: 12px;">📍 Estado: Verificando ubicación GPS...</div>
+            <div id="textoEstadoFichado" style="font-size: 13px; font-weight: bold; color: #004d40; margin-bottom: 12px; padding: 8px; background: #e0f2f1; border-radius: 6px;">
+                ⏱️ Estado Fichado: Sin registrar hoy
+            </div>
+            
+            <button id="btnFicharEntradaManual" class="btnAccion btnFicharEntrada">🟢 Iniciar fichado de entrada</button>
+            <button id="btnFicharSalidaManual" class="btnAccion btnFicharSalida">🔴 Detener fichado</button>
+
+            <!-- CALENDARIO HISTORIAL Y CONTROL MENSUAL -->
+            <button id="btnToggleCalendario" class="btnAccion" style="background: #00695c; color: white; margin-top: 10px;">📅 Control de Días Trabajados y Horarios</button>
+            <div id="contenedorCalendarioFichados" style="display: block; background: #e0f2f1; padding: 12px; border-radius: 8px; margin-top: 8px;">
+                <label style="font-size: 12px; font-weight: bold; color: #004d40;">Seleccionar Fecha de Fichado / Ajuste:</label>
+                <input type="date" id="inputFechaFichado" class="campoInput" onchange="renderizarCalendarioFichados()">
+                
+                <div id="listaHistorialFichados"></div>
+
+                <!-- RESUMEN MENSUAL ACUMULADO -->
+                <div id="cajaResumenMensualHoras" style="margin-top: 15px; background: white; border: 2px solid #00695c; border-radius: 8px; padding: 12px; font-size: 13px;">
+                    Cargando resumen mensual...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. PUNTOS DE ENTREGA -->
+    <div class="tarjetaAcordeon">
+        <button class="btnAcordeon">📍 Mis Puntos de Entrega y Eventos</button>
+        <div class="contenidoAcordeon">
+            <button id="btnToggleNuevoPunto" class="btnAccion" style="background: #1976d2; color: white; margin-bottom: 12px;">➕ Agregar Nuevo Punto</button>
+            
+            <div id="formNuevoPunto" style="display: none; background: #e0f2f1; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+                <input type="hidden" id="editandoId" value="">
+                <label style="font-size: 12px; font-weight: bold;">Tipo de Entrega / Parada:</label>
+                <select id="tipoEntregaInput" class="campoInput" onchange="actualizarOpcionesMinutos()">
+                    <option value="vianda" selected>🍝 Empresa - Viandas (Comida)</option>
+                    <option value="caja">📦 Clientes Farinata - Nipotti to go</option>
+                    <option value="hospitales">🏥 Hospitales (Cocinas y Térmicos)</option>
+                    <option value="frat">🏪 FRAT</option>
+                    <option value="evento">🎉 Eventos - Insumos / Equipamiento</option>
+                </select>
+
+                <label style="font-size: 12px; font-weight: bold;">Nombre del Cliente / Empresa / Evento:</label>
+                <input type="text" id="nombreClienteInput" class="campoInput" placeholder="Ej: Hospital Paroissien / Frat 06">
+                
+                <label style="font-size: 12px; font-weight: bold;">Coordenadas o Link de Maps:</label>
+                <input type="text" id="coordsClienteInput" class="campoInput" placeholder="-32.941431, -68.759505">
+
+                <label style="font-size: 12px; font-weight: bold; color: #004d40;">⏱️ Tiempo mínimo parado para confirmar llegada:</label>
+                <select id="selectMinutosDetencion" class="campoInput"></select>
+                
+                <button id="btnGuardarCliente" class="btnAccion btnGuardarPunto">💾 Guardar Punto</button>
+                <button id="btnCancelarEdicion" class="btnAccion" style="background: #757575; color: white; display: none;">Cancelar</button>
+            </div>
+
+            <div id="listaClientesContenedor"></div>
+        </div>
+    </div>
+
+    <!-- 3. HISTORIAL DE ENTREGAS -->
+    <div class="tarjetaAcordeon">
+        <button class="btnAcordeon">📅 Historial y Resumen de Entregas</button>
+        <div class="contenidoAcordeon">
+            <label style="font-size: 12px; font-weight: bold; color: #004d40;">Seleccionar Fecha del Historial:</label>
+            <input type="date" id="inputFechaHistorial" class="campoInput" onchange="cargarHistorialPorFecha()">
+            
+            <div id="contenedorResumenDia" class="cajaResumenHistorial">Cargando resumen...</div>
+
+            <div class="accionesResumenHistorial">
+                <button class="btnResumenAccion" onclick="copiarResumenHistorial()" style="background: #00695c;">📋 Copiar</button>
+                <button class="btnResumenAccion" onclick="enviarWhatsAppGeneral()" style="background: #25D366;">📲 WhatsApp General</button>
+                <button class="btnResumenAccion" onclick="eliminarHistorialDelDia()" style="background: #c62828;">🗑️ Eliminar Historial del Día</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<a href="index.html" class="btnVolverGPS">↩️ Volver al GPS Principal</a>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+const BASE_SUPRA = { lat: -32.9391230, lon: -68.8149017 };
+
+const mapa = L.map('mapaModulo', { preferCanvas: true }).setView([BASE_SUPRA.lat, BASE_SUPRA.lon], 14);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, crossOrigin: true, attribution: '&copy; OpenStreetMap' }).addTo(mapa);
+
+let marcadorBase = null;
+let marcadorUsuario = null;
+let ultimasCoordenadasUsuario = null;
+let estaDentroDeSupra = false;
+let marcadoresClientesMap = [];
+
+const contenedorMapa = document.getElementById("mapaModulo");
+const btnFullscreen = document.getElementById("btnToggleFullscreen");
+
+btnFullscreen.onclick = () => {
+    contenedorMapa.classList.toggle("mapa-fullscreen");
+    const esFullscreen = contenedorMapa.classList.contains("mapa-fullscreen");
+    btnFullscreen.innerHTML = esFullscreen ? "✕" : "🔲";
+    setTimeout(() => { mapa.invalidateSize(); }, 300);
+};
+
+document.getElementById("btnMiUbicacionMapa").onclick = () => {
+    if (ultimasCoordenadasUsuario) {
+        mapa.setView([ultimasCoordenadasUsuario.lat, ultimasCoordenadasUsuario.lon], 17, { animate: true });
+    } else {
+        alert("⚠️ Obteniendo ubicación GPS actual, aguardá un segundo...");
+        verificarUbicacionBase();
+    }
+};
+
+const iconoBase = L.divIcon({
+    html: `<div style="font-size: 28px; text-shadow: 0 2px 4px rgba(0,0,0,0.4);">🏢</div>`,
+    className: 'icono-emoji-mapa',
+    iconSize: [32, 32], iconAnchor: [16, 16]
+});
+
+function actualizarMarcadorBase() {
+    if (marcadorBase) mapa.removeLayer(marcadorBase);
+    marcadorBase = L.marker([BASE_SUPRA.lat, BASE_SUPRA.lon], { icon: iconoBase }).addTo(mapa).bindPopup("<b>🏢 Supra (Planta de Elaboración)</b>");
+}
+actualizarMarcadorBase();
+
+document.querySelectorAll('.btnAcordeon').forEach(btn => {
+    btn.addEventListener('click', function() {
+        this.classList.toggle('activo');
+        this.nextElementSibling.classList.toggle('abierto');
+    });
+});
+
+function calcularDistancia(lat1, lon1, lat2, lon2) {
+    const R = 6371e3;
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatearDistancia(metros) {
+    if (metros >= 1000) {
+        return `${(metros / 1000).toFixed(2)} km`;
+    } else {
+        return `${Math.round(metros)} m`;
+    }
+}
+
+function verificarUbicacionBase() {
+    if (!navigator.geolocation) {
+        document.getElementById("textoEstadoBase").innerText = "⚠️ Geolocalización no soportada";
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(pos => {
+        const uLat = pos.coords.latitude;
+        const uLon = pos.coords.longitude;
+        ultimasCoordenadasUsuario = { lat: uLat, lon: uLon };
+
+        if (!marcadorUsuario) {
+            marcadorUsuario = L.marker([uLat, uLon], {
+                icon: L.divIcon({ 
+                    html: `
+                        <div style="width: 32px; height: 32px; display: flex; justify-content: center; align-items: center; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.4));">
+                            <svg viewBox="0 0 512 512" width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+                                <path fill="#ea4335" d="M256 0C153.755 0 70.573 83.182 70.573 185.437c0 126.306 165.939 311.44 173.344 319.664a13.356 13.356 0 0 0 19.166 0c7.405-8.224 173.344-193.358 173.344-319.664C436.427 83.182 353.245 0 256 0zm0 277.418c-50.81 0-91.981-41.171-91.981-91.981s41.171-91.981 91.981-91.981 91.981 41.171 91.981 91.981-41.171 91.981-91.981 91.981z"/>
+                                <circle fill="#ffffff" cx="256" cy="185.437" r="45"/>
+                            </svg>
+                        </div>
+                    `, 
+                    className: 'icono-emoji-mapa',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32]
+                })
+            }).addTo(mapa).bindPopup("<b>Mi Posición Actual</b>");
+        } else {
+            marcadorUsuario.setLatLng([uLat, uLon]);
+        }
+
+        const dist = calcularDistancia(uLat, uLon, BASE_SUPRA.lat, BASE_SUPRA.lon);
+        const txtEstado = document.getElementById("textoEstadoBase");
+        const distFormateada = formatearDistancia(dist);
+
+        if (dist <= 150) {
+            estaDentroDeSupra = true;
+            txtEstado.innerHTML = "🟢 <strong>ESTADO: DENTRO DE SUPRA (Planta)</strong>";
+            txtEstado.style.color = "#2e7d32";
+        } else {
+            estaDentroDeSupra = false;
+            txtEstado.innerHTML = `🔴 <strong>ESTADO: FUERA DE SUPRA (Planta)</strong> (${distFormateada})`;
+            txtEstado.style.color = "#c62828";
+        }
+        renderizarCalendarioFichados();
+    }, err => {
+        document.getElementById("textoEstadoBase").innerText = "⚠️ No se pudo obtener la ubicación GPS";
+    }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
+function obtenerFechaHoyISO() {
+    return new Date().toISOString().split('T')[0];
+}
+
+function obtenerHora24hs() {
+    const ahora = new Date();
+    const hs = String(ahora.getHours()).padStart(2, '0');
+    const mins = String(ahora.getMinutes()).padStart(2, '0');
+    return `${hs}:${mins}`;
+}
+
+function normalizarHora24hs(horaTexto) {
+    if (!horaTexto) return "--:--";
+    if (horaTexto.includes("p.m.") || horaTexto.includes("a.m.") || horaTexto.includes("PM") || horaTexto.includes("AM")) {
+        const partes = horaTexto.replace(/(p\.m\.|a\.m\.|PM|AM|hs)/g, '').trim().split(':');
+        let h = parseInt(partes[0], 10);
+        const m = parseInt(partes[1], 10);
+        if ((horaTexto.includes("p.m.") || horaTexto.includes("PM")) && h < 12) h += 12;
+        if ((horaTexto.includes("a.m.") || horaTexto.includes("AM")) && h === 12) h = 0;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+    return horaTexto;
+}
+
+function actualizarTextoFichado() {
+    const hoyISO = obtenerFechaHoyISO();
+    const historial = JSON.parse(localStorage.getItem("historial_fichados_diarios")) || {};
+    const fichadoHoy = historial[hoyISO] || null;
+    
+    const txt = document.getElementById("textoEstadoFichado");
+    if (!fichadoHoy || !fichadoHoy.entrada) {
+        txt.innerHTML = "⏱️ Estado Fichado: Sin registrar jornada activa hoy";
+        txt.style.color = "#004d40";
+        txt.style.background = "#e0f2f1";
+    } else if (fichadoHoy.entrada && !fichadoHoy.salida) {
+        const ent24 = normalizarHora24hs(fichadoHoy.entrada);
+        txt.innerHTML = `🟢 <strong>JORNADA ACTIVA:</strong> Entrada a las ${ent24} hs`;
+        txt.style.color = "#1b5e20";
+        txt.style.background = "#c8e6c9";
+    } else {
+        const ent24 = normalizarHora24hs(fichadoHoy.entrada);
+        const sal24 = normalizarHora24hs(fichadoHoy.salida);
+        txt.innerHTML = `🏁 <strong>JORNADA FINALIZADA:</strong> ${ent24} hs a ${sal24} hs`;
+        txt.style.color = "#0d47a1";
+        txt.style.background = "#bbdefb";
+    }
+    renderizarCalendarioFichados();
+}
+
+document.getElementById("btnFicharEntradaManual").onclick = () => {
+    const horaStr = obtenerHora24hs();
+    const hoyISO = obtenerFechaHoyISO();
+
+    let historial = JSON.parse(localStorage.getItem("historial_fichados_diarios")) || {};
+    if (!historial[hoyISO]) historial[hoyISO] = {};
+    
+    historial[hoyISO].entrada = horaStr;
+    historial[hoyISO].entradaFueraSupra = !estaDentroDeSupra;
+    historial[hoyISO].salida = null;
+    historial[hoyISO].desayunoTomado = true;
+    historial[hoyISO].almuerzoTomado = true;
+    historial[hoyISO].tipoTurno = 1.0;
+    historial[hoyISO].esFeriado = false;
+
+    localStorage.setItem("historial_fichados_diarios", JSON.stringify(historial));
+    actualizarTextoFichado();
+    alert(`🟢 Entrada fichada a las ${horaStr} hs.`);
+};
+
+document.getElementById("btnFicharSalidaManual").onclick = () => {
+    const hoyISO = obtenerFechaHoyISO();
+    let historial = JSON.parse(localStorage.getItem("historial_fichados_diarios")) || {};
+    
+    if (!historial[hoyISO] || !historial[hoyISO].entrada) {
+        alert("⚠️ No podés detener el fichado sin haber iniciado una entrada hoy primero.");
+        return;
+    }
+    const horaStr = obtenerHora24hs();
+    
+    historial[hoyISO].salida = horaStr;
+    historial[hoyISO].salidaFueraSupra = !estaDentroDeSupra;
+
+    localStorage.setItem("historial_fichados_diarios", JSON.stringify(historial));
+    actualizarTextoFichado();
+    alert(`🔴 Fichado de salida registrado a las ${horaStr} hs.`);
+};
+
+document.getElementById("btnToggleCalendario").onclick = () => {
+    const cont = document.getElementById("contenedorCalendarioFichados");
+    cont.style.display = cont.style.display === "none" ? "block" : "none";
+};
+
+function calcularHorasJornada(item) {
+    if (!item.entrada || !item.salida) return { hsTrabajadas: 0, hsExtras: 0 };
+
+    const ent24 = normalizarHora24hs(item.entrada);
+    const sal24 = normalizarHora24hs(item.salida);
+
+    const [hE, mE] = ent24.split(':').map(Number);
+    const [hS, mS] = sal24.split(':').map(Number);
+
+    if (isNaN(hE) || isNaN(mE) || isNaN(hS) || isNaN(mS)) return { hsTrabajadas: 0, hsExtras: 0 };
+
+    let minEntrada = hE * 60 + mE;
+    let minSalida = hS * 60 + mS;
+
+    if (minSalida < minEntrada) minSalida += 24 * 60;
+
+    let totalMinutos = minSalida - minEntrada;
+    let totalHorasPresencia = totalMinutos / 60;
+
+    let hsTrabajadas = 0;
+    let hsExtras = 0;
+
+    if (totalHorasPresencia <= 9) {
+        hsTrabajadas = Math.min(8, totalHorasPresencia);
+        if (totalHorasPresencia > 8) hsTrabajadas = 8;
+    } else {
+        hsTrabajadas = 8;
+        hsExtras += (totalHorasPresencia - 9);
+    }
+
+    if (item.desayunoTomado === false) hsExtras += 0.5;
+    if (item.almuerzoTomado === false) hsExtras += 0.5;
+
+    return {
+        hsTrabajadas: parseFloat(hsTrabajadas.toFixed(2)),
+        hsExtras: parseFloat(hsExtras.toFixed(2))
+    };
+}
+
+function renderizarCalendarioFichados() {
+    const fechaSeleccionada = document.getElementById("inputFechaFichado").value;
+    const lista = document.getElementById("listaHistorialFichados");
+    const historial = JSON.parse(localStorage.getItem("historial_fichados_diarios")) || {};
+
+    if (!fechaSeleccionada || !historial[fechaSeleccionada]) {
+        lista.innerHTML = `<div style="font-size:12px; color:#666; margin-top:8px;">No hay registros de fichado para la fecha seleccionada.</div>`;
+        renderizarResumenMensual();
+        return;
+    }
+
+    const item = historial[fechaSeleccionada];
+    const [a, m, d] = fechaSeleccionada.split('-');
+    const fechaFormateada = `${d}/${m}/${a}`;
+    
+    let entradaFormateada = normalizarHora24hs(item.entrada);
+    let salidaFormateada = item.salida ? normalizarHora24hs(item.salida) : "(En curso / Sin fichar)";
+
+    const esEntradaFuera = (item.entradaFueraSupra !== undefined) ? item.entradaFueraSupra : !estaDentroDeSupra;
+    const esSalidaFuera = (item.salidaFueraSupra !== undefined) ? item.salidaFueraSupra : !estaDentroDeSupra;
+
+    let advEntrada = esEntradaFuera ? `<br><span class="badgeAdvertencia">⚠️ Ingreso fuera de Supra</span>` : '';
+    let advSalida = (item.salida && esSalidaFuera) ? `<br><span class="badgeAdvertencia">⚠️ Egreso fuera de Supra</span>` : '';
+
+    const calculo = calcularHorasJornada(item);
+    const desTomado = item.desayunoTomado !== false;
+    const almTomado = item.almuerzoTomado !== false;
+    const tipoTurno = item.tipoTurno !== undefined ? item.tipoTurno : 1.0;
+    const esFeriado = item.esFeriado === true;
+
+    lista.innerHTML = `
+        <div class="itemHistorialFichado" style="margin-top: 8px;">
+            <strong>📆 Fecha: ${fechaFormateada}</strong><br>
+            <div style="margin-top: 6px;">🟢 Entrada: <b>${entradaFormateada} hs</b> ${advEntrada}</div>
+            <div style="margin-top: 6px;">🔴 Salida: <b>${salidaFormateada} hs</b> ${advSalida}</div>
+            
+            <div class="tarjetaControlHorario">
+                <strong style="color:#004d40;">⚙️ Configuración del Día:</strong>
+                <div style="margin-top:6px; font-size:12px;"><b>Descanso Desayuno (30m):</b></div>
+                <div class="gridBotonesOpcion">
+                    <button class="btnOpcionChico ${desTomado ? 'activo' : ''}" onclick="cambiarOpcionFichado('${fechaSeleccionada}', 'desayunoTomado', true)">☕ Tomado</button>
+                    <button class="btnOpcionChico ${!desTomado ? 'activo' : ''}" onclick="cambiarOpcionFichado('${fechaSeleccionada}', 'desayunoTomado', false)">⚠️ NO Tomado (+0.5h)</button>
+                </div>
+
+                <div style="margin-top:6px; font-size:12px;"><b>Descanso Almuerzo (30m):</b></div>
+                <div class="gridBotonesOpcion">
+                    <button class="btnOpcionChico ${almTomado ? 'activo' : ''}" onclick="cambiarOpcionFichado('${fechaSeleccionada}', 'almuerzoTomado', true)">🍽️ Tomado</button>
+                    <button class="btnOpcionChico ${!almTomado ? 'activo' : ''}" onclick="cambiarOpcionFichado('${fechaSeleccionada}', 'almuerzoTomado', false)">⚠️ NO Tomado (+0.5h)</button>
+                </div>
+
+                <div style="margin-top:6px; font-size:12px;"><b>¿Es Día Feriado?:</b></div>
+                <div class="gridBotonesOpcion">
+                    <button class="btnOpcionChico ${!esFeriado ? 'activo' : ''}" onclick="cambiarOpcionFichado('${fechaSeleccionada}', 'esFeriado', false)">🏢 Normal</button>
+                    <button class="btnOpcionChico ${esFeriado ? 'activo' : ''}" onclick="cambiarOpcionFichado('${fechaSeleccionada}', 'esFeriado', true)">🎉 FERIADO</button>
+                </div>
+
+                <div style="margin-top:6px; font-size:12px;"><b>Tipo / Valor de Turno:</b></div>
+                <div class="gridBotonesOpcion">
+                    <button class="btnOpcionChico ${tipoTurno === 1.0 ? 'activo' : ''}" onclick="cambiarOpcionFichado('${fechaSeleccionada}', 'tipoTurno', 1.0)">1.0 Turno Completo</button>
+                    <button class="btnOpcionChico ${tipoTurno === 0.5 ? 'activo' : ''}" onclick="cambiarOpcionFichado('${fechaSeleccionada}', 'tipoTurno', 0.5)">0.5 Medio Turno</button>
+                </div>
+            </div>
+
+            <div style="margin-top: 8px; font-size: 13px; color: #004d40; background: #c8e6c9; padding: 8px; border-radius: 6px;">
+                📊 <b>Horas Computadas:</b> ${calculo.hsTrabajadas} hs pagas | <b>Extras:</b> ${calculo.hsExtras} hs | <b>Tipo:</b> ${esFeriado ? '🎉 FERIADO' : '🏢 Normal'} (${tipoTurno} turno)
+            </div>
+        </div>
+    `;
+
+    renderizarResumenMensual();
+}
+
+function cambiarOpcionFichado(fecha, clave, valor) {
+    let historial = JSON.parse(localStorage.getItem("historial_fichados_diarios")) || {};
+    if (historial[fecha]) {
+        historial[fecha][clave] = valor;
+        localStorage.setItem("historial_fichados_diarios", JSON.stringify(historial));
+        renderizarCalendarioFichados();
+        actualizarTextoFichado();
+    }
+}
+
+function renderizarResumenMensual() {
+    const caja = document.getElementById("cajaResumenMensualHoras");
+    const historial = JSON.parse(localStorage.getItem("historial_fichados_diarios")) || {};
+
+    let totalHorasBase = 0;
+    let totalHorasExtras = 0;
+    let turnosNormales = 0;
+    let turnosFeriados = 0;
+    let diasContabilizados = 0;
+
+    for (let fecha in historial) {
+        const item = historial[fecha];
+        if (item.entrada && item.salida) {
+            const res = calcularHorasJornada(item);
+            totalHorasBase += res.hsTrabajadas;
+            totalHorasExtras += res.hsExtras;
+            
+            const valorTurno = (item.tipoTurno !== undefined ? item.tipoTurno : 1.0);
+            if (item.esFeriado) {
+                turnosFeriados += valorTurno;
+            } else {
+                turnosNormales += valorTurno;
+            }
+            diasContabilizados++;
+        }
+    }
+
+    const totalTurnos = turnosNormales + turnosFeriados;
+
+    caja.innerHTML = `
+        <strong style="color: #004d40; font-size: 14px;">📊 RESUMEN ACUMULADO DEL PERÍODO</strong><br>
+        <span style="font-size: 11px; color: #555;">(Cómputo automático de jornadas registradas)</span>
+        <hr style="border: 0; border-top: 1px dashed #00695c; margin: 8px 0;">
+        🗓️ <b>Días Trabajados:</b> ${diasContabilizados} días<br>
+        💼 <b>Turnos Normales:</b> ${turnosNormales.toFixed(1)} turnos<br>
+        🎉 <b>Turnos Feriados:</b> <span style="color:#d32f2f; font-weight:bold;">${turnosFeriados.toFixed(1)}</span> turnos<br>
+        ⭐ <b>TOTAL TURNOS:</b> <span style="color:#2e7d32; font-weight:bold;">${totalTurnos.toFixed(1)}</span> (${turnosNormales.toFixed(1)} normales + ${turnosFeriados.toFixed(1)} feriados)<br>
+        ⏱️ <b>Horas Trabajadas:</b> ${totalHorasBase.toFixed(1)} hs<br>
+        🔥 <b>Horas Extras Totales:</b> <span style="color:#c62828; font-weight:bold;">${totalHorasExtras.toFixed(1)} hs</span>
+    `;
+}
+
+function extraerCoordenadas(texto) {
+    const regex = /(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/;
+    const m = texto.match(regex);
+    return m ? { lat: parseFloat(m[1]), lon: parseFloat(m[2]) } : null;
+}
+
+function actualizarOpcionesMinutos(valorSeleccionado = null) {
+    const tipo = document.getElementById("tipoEntregaInput").value;
+    const select = document.getElementById("selectMinutosDetencion");
+    select.innerHTML = "";
+
+    const opciones = tipo === "evento" ? [
+        { val: 5, txt: "5 Minutos (Mínimo)" },
+        { val: 15, txt: "15 Minutos" },
+        { val: 30, txt: "30 Minutos" },
+        { val: 60, txt: "1 Hora" },
+        { val: 120, txt: "2 Horas" }
+    ] : [
+        { val: 3, txt: "3 Minutos" },
+        { val: 5, txt: "5 Minutos (Recomendado)" },
+        { val: 10, txt: "10 Minutos" },
+        { val: 15, txt: "15 Minutos" }
+    ];
+
+    opciones.forEach(o => {
+        const opt = document.createElement("option");
+        opt.value = o.val;
+        opt.innerText = o.txt;
+        if (valorSeleccionado == o.val || (!valorSeleccionado && o.val == 5)) opt.selected = true;
+        select.appendChild(opt);
+    });
+}
+
+function toggleSubCategoria(catKey) {
+    const cont = document.getElementById(`box-cat-${catKey}`);
+    const body = document.getElementById(`body-cat-${catKey}`);
+    if (body && cont) {
+        body.classList.toggle('abierto');
+        cont.classList.toggle('abierto');
+    }
+}
+
+function refrescarClientes() {
+    marcadoresClientesMap.forEach(m => mapa.removeLayer(m));
+    marcadoresClientesMap = [];
+    
+    const lista = document.getElementById("listaClientesContenedor");
+    const clientes = JSON.parse(localStorage.getItem("puntos_entrega") || "[]");
+
+    if (clientes.length === 0) {
+        lista.innerHTML = `<div style="color: #888; font-size: 13px;">No hay puntos de entrega guardados.</div>`;
+        cargarHistorialPorFecha();
+        return;
+    }
+
+    lista.innerHTML = "";
+
+    const categorias = [
+        { clave: "vianda", titulo: "🍝 Viandas de Empresas" },
+        { clave: "caja", titulo: "📦 Clientes Farinata - Nipotti to go" },
+        { clave: "hospitales", titulo: "🏥 Hospitales" },
+        { clave: "frat", titulo: "🏪 FRAT" },
+        { clave: "evento", titulo: "🎉 Eventos e Insumos" }
+    ];
+
+    categorias.forEach(cat => {
+        const itemsCategoria = clientes.filter(c => (c.tipo || "caja") === cat.clave);
+        if (itemsCategoria.length === 0) return;
+
+        // Contenedor visual del grupo
+        const boxCat = document.createElement("div");
+        boxCat.id = `box-cat-${cat.clave}`;
+        boxCat.className = "subAcordeonContenedor";
+
+        const subHeader = document.createElement("div");
+        subHeader.className = "subAcordeonHeader";
+        subHeader.onclick = () => toggleSubCategoria(cat.clave);
+        subHeader.innerHTML = `<span>${cat.titulo} (${itemsCategoria.length})</span> <span class="flechaSub">▼</span>`;
+        boxCat.appendChild(subHeader);
+
+        const subBody = document.createElement("div");
+        subBody.id = `body-cat-${cat.clave}`;
+        subBody.className = "subAcordeonBody"; // RETRAÍDO POR DEFECTO AL CARGAR
+
+        itemsCategoria.forEach(c => {
+            let emoji = c.tipo === "vianda" ? "🍝" : (c.tipo === "evento" ? "🎉" : (c.tipo === "hospitales" ? "🏥" : (c.tipo === "frat" ? "🏪" : "📦")));
+            const minutos = c.minutosDetencion || 5;
+            const txtMinutos = minutos >= 60 ? `${minutos / 60} hs` : `${minutos} min`;
+
+            const m = L.marker([c.lat, c.lon], { 
+                icon: L.divIcon({ html: `<div style="font-size: 26px;">${emoji}</div>`, className: 'icono-emoji-mapa' }) 
+            }).addTo(mapa).bindPopup(`<b>${emoji} ${c.nombre}</b><br><small>⏱️ Mínimo: ${txtMinutos}</small>`);
+            marcadoresClientesMap.push(m);
+
+            const tG = c.retTG || 0;
+            const tC = c.retTC || 0;
+            const vid = c.retVid || 0;
+            const plas = c.retPlas || 0;
+            const cajLlev = c.cajLlev || 0;
+            const cajTrai = c.cajTrai || 0;
+            const bultos = c.bultos || 0;
+            const obs = c.obs || "";
+
+            const contenedor = document.createElement("div");
+            contenedor.className = "itemClienteContenedor";
+
+            let contenidoSublista = "";
+
+            if (c.tipo === "evento") {
+                contenidoSublista = `
+                    <div id="sublista-${c.id}" class="sublistaEnvases">
+                        <strong style="font-size: 13px; color: #004d40;">🎉 Registro del Evento / Insumos:</strong>
+                        <label style="font-size: 12px; font-weight: bold; color: #004d40; margin-top: 8px; display: block;">📝 Detalle de Insumos / Carga:</label>
+                        <input type="text" id="obs-${c.id}" class="campoInput" style="margin-bottom: 8px;" placeholder="Ej: Se entregaron 3 conservadoras..." value="${obs}" onchange="guardarDatosCliente(${c.id})">
+                        <button class="btnWhatsApp" onclick="enviarReporteWhatsApp(${c.id})">📲 Enviar Reporte por WhatsApp</button>
+                    </div>
+                `;
+            } else if (c.tipo === "frat") {
+                contenidoSublista = `
+                    <div id="sublista-${c.id}" class="sublistaEnvases">
+                        <strong style="font-size: 13px; color: #8e44ad;">🏪 Registro de Cajones Plásticos (FRAT):</strong>
+                        <div class="controlContador" style="margin-top:8px;">
+                            <span style="font-size:13px;">📦 Cajones Llevados (Entregados):</span>
+                            <div>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'cajLlev', -1)">-</button>
+                                <span id="cajLlev-${c.id}" class="valContador">${cajLlev}</span>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'cajLlev', 1)">+</button>
+                            </div>
+                        </div>
+                        <div class="controlContador">
+                            <span style="font-size:13px;">🔄 Cajones Traídos (Retirados):</span>
+                            <div>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'cajTrai', -1)">-</button>
+                                <span id="cajTrai-${c.id}" class="valContador">${cajTrai}</span>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'cajTrai', 1)">+</button>
+                            </div>
+                        </div>
+                        <label style="font-size: 12px; font-weight: bold; color: #004d40; margin-top: 8px; display: block;">📝 Observaciones:</label>
+                        <input type="text" id="obs-${c.id}" class="campoInput" style="margin-bottom: 8px;" placeholder="Ej: Quedan cajones vacíos pendientes..." value="${obs}" onchange="guardarDatosCliente(${c.id})">
+                        <button class="btnWhatsApp" onclick="enviarReporteWhatsApp(${c.id})">📲 Enviar Reporte FRAT por WhatsApp</button>
+                    </div>
+                `;
+            } else if (c.tipo === "hospitales") {
+                contenidoSublista = `
+                    <div id="sublista-${c.id}" class="sublistaEnvases">
+                        <strong style="font-size: 13px; color: #004d40;">🏥 Registro de Térmicos (Hospital):</strong>
+                        <div class="controlContador" style="margin-top:8px;">
+                            <span style="font-size:13px;">🧊 Térmicos Grandes:</span>
+                            <div>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'TG', -1)">-</button>
+                                <span id="tg-${c.id}" class="valContador">${tG}</span>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'TG', 1)">+</button>
+                            </div>
+                        </div>
+                        <div class="controlContador">
+                            <span style="font-size:13px;">🧊 Térmicos Chicos:</span>
+                            <div>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'TC', -1)">-</button>
+                                <span id="tc-${c.id}" class="valContador">${tC}</span>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'TC', 1)">+</button>
+                            </div>
+                        </div>
+                        <label style="font-size: 12px; font-weight: bold; color: #004d40; margin-top: 8px; display: block;">📝 Observaciones:</label>
+                        <input type="text" id="obs-${c.id}" class="campoInput" style="margin-bottom: 8px;" placeholder="Ej: Faltó retirar 1 térmico grande..." value="${obs}" onchange="guardarDatosCliente(${c.id})">
+                        <button class="btnWhatsApp" onclick="enviarReporteWhatsApp(${c.id})">📲 Enviar Reporte por WhatsApp</button>
+                    </div>
+                `;
+            } else if (c.tipo === "caja") {
+                contenidoSublista = `
+                    <div id="sublista-${c.id}" class="sublistaEnvases">
+                        <strong style="font-size: 13px; color: #004d40;">📦 Registro Farinata - Nipotti to go:</strong>
+                        <button class="btnWhatsApp" style="background: #1976d2; margin-top: 12px;" onclick="window.location.href='index4.html'">➡️ Completar en Index 4</button>
+                    </div>
+                `;
+            } else {
+                contenidoSublista = `
+                    <div id="sublista-${c.id}" class="sublistaEnvases">
+                        <strong style="font-size: 13px; color: #004d40;">📦 Registro de Viandas / Envases:</strong>
+                        <div class="controlContador" style="margin-top:8px;">
+                            <span style="font-size:13px;">🧊 Térmicos Grandes:</span>
+                            <div>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'TG', -1)">-</button>
+                                <span id="tg-${c.id}" class="valContador">${tG}</span>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'TG', 1)">+</button>
+                            </div>
+                        </div>
+                        <div class="controlContador">
+                            <span style="font-size:13px;">🧊 Térmicos Chicos:</span>
+                            <div>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'TC', -1)">-</button>
+                                <span id="tc-${c.id}" class="valContador">${tC}</span>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'TC', 1)">+</button>
+                            </div>
+                        </div>
+                        <div class="controlContador">
+                            <span style="font-size:13px;">🍱 Bandejas de Vidrio:</span>
+                            <div>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'Vid', -1)">-</button>
+                                <span id="vid-${c.id}" class="valContador">${vid}</span>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'Vid', 1)">+</button>
+                            </div>
+                        </div>
+                        <div class="controlContador">
+                            <span style="font-size:13px;">♻️ Bandejas Plásticas:</span>
+                            <div>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'Plas', -1)">-</button>
+                                <span id="plas-${c.id}" class="valContador">${plas}</span>
+                                <button class="btnContador" onclick="modificarCantidad(${c.id}, 'Plas', 1)">+</button>
+                            </div>
+                        </div>
+                        <label style="font-size: 12px; font-weight: bold; color: #004d40; margin-top: 8px; display: block;">📝 Observaciones:</label>
+                        <input type="text" id="obs-${c.id}" class="campoInput" style="margin-bottom: 8px;" placeholder="Ej: Se rompió una bandeja..." value="${obs}" onchange="guardarDatosCliente(${c.id})">
+                        <button class="btnWhatsApp" onclick="enviarReporteWhatsApp(${c.id})">📲 Enviar Reporte por WhatsApp</button>
+                    </div>
+                `;
+            }
+
+            contenedor.innerHTML = `
+                <div class="itemClienteCabecera" onclick="toggleSublista(${c.id}, ${c.lat}, ${c.lon})">
+                    <div>
+                        <strong>${emoji} ${c.nombre}</strong><br>
+                        <small style="color: #666;">⏱️ Mínimo detención: ${txtMinutos}</small>
+                    </div>
+                    <div class="accionesItem">
+                        <button onclick="event.stopPropagation(); prepararEdicion(${c.id})" class="btnEditar" title="Editar">✏️</button>
+                        <button onclick="event.stopPropagation(); borrarCliente(${c.id})" class="btnBorrar" title="Eliminar">🗑️</button>
+                    </div>
+                </div>
+                ${contenidoSublista}
+            `;
+            subBody.appendChild(contenedor);
+        });
+
+        boxCat.appendChild(subBody);
+        lista.appendChild(boxCat);
+    });
+
+    cargarHistorialPorFecha();
+}
+
+function toggleSublista(id, lat, lon) {
+    const sub = document.getElementById(`sublista-${id}`);
+    const estaAbierta = sub.classList.contains("abierta");
+    document.querySelectorAll('.sublistaEnvases').forEach(s => s.classList.remove('abierta'));
+    if (!estaAbierta) {
+        sub.classList.add("abierta");
+        mapa.setView([lat, lon], 17, { animate: true });
+        document.getElementById("btnVolverAEnfoque").style.display = "block";
+    }
+}
+
+function modificarCantidad(id, tipo, delta) {
+    let clientes = JSON.parse(localStorage.getItem("puntos_entrega") || "[]");
+    const cliente = clientes.find(c => c.id === id);
+    if (!cliente) return;
+
+    if (tipo === 'TG') cliente.retTG = Math.max(0, (cliente.retTG || 0) + delta);
+    if (tipo === 'TC') cliente.retTC = Math.max(0, (cliente.retTC || 0) + delta);
+    if (tipo === 'Vid') cliente.retVid = Math.max(0, (cliente.retVid || 0) + delta);
+    if (tipo === 'Plas') cliente.retPlas = Math.max(0, (cliente.retPlas || 0) + delta);
+    if (tipo === 'cajLlev') cliente.cajLlev = Math.max(0, (cliente.cajLlev || 0) + delta);
+    if (tipo === 'cajTrai') cliente.cajTrai = Math.max(0, (cliente.cajTrai || 0) + delta);
+    if (tipo === 'bultos') cliente.bultos = Math.max(0, (cliente.bultos || 0) + delta);
+
+    localStorage.setItem("puntos_entrega", JSON.stringify(clientes));
+    
+    if(document.getElementById(`tg-${id}`)) document.getElementById(`tg-${id}`).innerText = cliente.retTG || 0;
+    if(document.getElementById(`tc-${id}`)) document.getElementById(`tc-${id}`).innerText = cliente.retTC || 0;
+    if(document.getElementById(`vid-${id}`)) document.getElementById(`vid-${id}`).innerText = cliente.retVid || 0;
+    if(document.getElementById(`plas-${id}`)) document.getElementById(`plas-${id}`).innerText = cliente.retPlas || 0;
+    if(document.getElementById(`cajLlev-${id}`)) document.getElementById(`cajLlev-${id}`).innerText = cliente.cajLlev || 0;
+    if(document.getElementById(`cajTrai-${id}`)) document.getElementById(`cajTrai-${id}`).innerText = cliente.cajTrai || 0;
+    if(document.getElementById(`bultos-${id}`)) document.getElementById(`bultos-${id}`).innerText = cliente.bultos || 0;
+
+    cargarHistorialPorFecha();
+}
+
+function guardarDatosCliente(id) {
+    let clientes = JSON.parse(localStorage.getItem("puntos_entrega") || "[]");
+    const cliente = clientes.find(c => c.id === id);
+    if (!cliente) return;
+    const inputObs = document.getElementById(`obs-${id}`);
+    if (inputObs) cliente.obs = inputObs.value.trim();
+    localStorage.setItem("puntos_entrega", JSON.stringify(clientes));
+    cargarHistorialPorFecha();
+}
+
+function cargarHistorialPorFecha() {
+    const fechaInput = document.getElementById("inputFechaHistorial").value;
+    const clientes = JSON.parse(localStorage.getItem("puntos_entrega") || "[]");
+    const cajaResumen = document.getElementById("contenedorResumenDia");
+
+    if (clientes.length === 0) {
+        cajaResumen.innerText = "No hay datos de entregas registrados.";
+        return;
+    }
+
+    let texto = `*📍 REPORTE GENERAL ACUMULADO*\nFecha: ${fechaInput || new Date().toLocaleDateString('es-AR')}\n\n`;
+    
+    let totalTG = 0, totalTC = 0, totalVid = 0, totalPlas = 0, totalCajLlev = 0, totalCajTrai = 0, totalBultos = 0;
+
+    clientes.forEach((c, idx) => {
+        let emoji = c.tipo === "vianda" ? "🍝" : (c.tipo === "evento" ? "🎉" : (c.tipo === "hospitales" ? "🏥" : (c.tipo === "frat" ? "🏪" : "📦")));
+        texto += `${idx + 1}. ${emoji} *${c.nombre}*\n`;
+
+        if (c.tipo === "evento") {
+            texto += `   📝 Detalle: ${c.obs || "Sin notas"}\n`;
+        } else if (c.tipo === "frat") {
+            const llev = c.cajLlev || 0;
+            const trai = c.cajTrai || 0;
+            texto += `   - Cajones Llevados: ${llev} | Traídos: ${trai}\n`;
+            if(c.obs) texto += `   - Obs: ${c.obs}\n`;
+            totalCajLlev += llev;
+            totalCajTrai += trai;
+        } else if (c.tipo === "caja") {
+            const b = c.bultos || 0;
+            texto += `   - Cajas/Bultos Entregados: ${b}\n`;
+            if(c.obs) texto += `   - Obs: ${c.obs}\n`;
+            totalBultos += b;
+        } else if (c.tipo === "hospitales") {
+            const tg = c.retTG || 0;
+            const tc = c.retTC || 0;
+            texto += `   - Térmicos Gdes: ${tg} | Chicos: ${tc}\n`;
+            if(c.obs) texto += `   - Obs: ${c.obs}\n`;
+            totalTG += tg;
+            totalTC += tc;
+        } else {
+            const tg = c.retTG || 0;
+            const tc = c.retTC || 0;
+            const vid = c.retVid || 0;
+            const plas = c.retPlas || 0;
+            texto += `   - Térmicos Gdes: ${tg} | Chicos: ${tc} | Vidrio: ${vid} | Plásticos: ${plas}\n`;
+            if(c.obs) texto += `   - Obs: ${c.obs}\n`;
+            totalTG += tg;
+            totalTC += tc;
+            totalVid += vid;
+            totalPlas += plas;
+        }
+        texto += `\n`;
+    });
+
+    texto += `----------------------------------\n`;
+    texto += `*TOTALES ACUMULADOS:*\n`;
+    if (totalTG > 0 || totalTC > 0 || totalVid > 0 || totalPlas > 0) {
+        texto += `🧊 Térmicos Grandes: ${totalTG}\n`;
+        texto += `🧊 Térmicos Chicos: ${totalTC}\n`;
+        texto += `🍱 Bandejas de Vidrio: ${totalVid}\n`;
+        texto += `♻️ Bandejas Plásticas: ${totalPlas}\n`;
+    }
+    if (totalCajLlev > 0 || totalCajTrai > 0) {
+        texto += `📦 Cajones FRAT Llevados: ${totalCajLlev} | Traídos: ${totalCajTrai}\n`;
+    }
+    if (totalBultos > 0) {
+        texto += `📦 Cajas/Bultos Entregados: ${totalBultos}\n`;
+    }
+
+    cajaResumen.innerText = texto;
+}
+
+function copiarResumenHistorial() {
+    const texto = document.getElementById("contenedorResumenDia").innerText;
+    navigator.clipboard.writeText(texto).then(() => {
+        alert("📋 ¡Resumen copiado al portapapeles con éxito!");
+    }).catch(err => {
+        alert("⚠️ No se pudo copiar automáticamente.");
+    });
+}
+
+function enviarWhatsAppGeneral() {
+    const texto = document.getElementById("contenedorResumenDia").innerText;
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
+    window.open(url, '_blank');
+}
+
+function eliminarHistorialDelDia() {
+    if (confirm("⚠️ ¿Estás seguro de que querés resetear a cero todas las entregas, cajones y observaciones cargadas?")) {
+        let clientes = JSON.parse(localStorage.getItem("puntos_entrega") || "[]");
+        clientes.forEach(c => {
+            c.retTG = 0;
+            c.retTC = 0;
+            c.retVid = 0;
+            c.retPlas = 0;
+            c.cajLlev = 0;
+            c.cajTrai = 0;
+            c.bultos = 0;
+            c.obs = "";
+        });
+        localStorage.setItem("puntos_entrega", JSON.stringify(clientes));
+        refrescarClientes();
+        alert("🗑️ ¡Historial del día reseteado a cero con éxito!");
+    }
+}
+
+function enviarReporteWhatsApp(id) {
+    let clientes = JSON.parse(localStorage.getItem("puntos_entrega") || "[]");
+    const c = clientes.find(item => item.id === id);
+    if (!c) return;
+
+    const inputObs = document.getElementById(`obs-${id}`);
+    if (inputObs) c.obs = inputObs.value.trim();
+
+    const obs = c.obs || "";
+    const minutos = c.minutosDetencion || 5;
+    const txtMinutos = minutos >= 60 ? `${minutos / 60} hs` : `${minutos} min`;
+
+    const fechaActual = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const horaActual = obtenerHora24hs();
+
+    let texto = `*📍 REPORTE - ${fechaActual}*\n`;
+
+    if (c.tipo === "evento") {
+        texto += `*🎉 EVENTO:* ${c.nombre}\n`;
+        texto += `*Hora:* ${horaActual} hs\n`;
+        texto += `*⏱️ Tiempo de permanencia:* ${txtMinutos}\n`;
+        if (obs !== "") texto += `\n📝 *Insumos / Notas:* ${obs}\n`;
+    } else if (c.tipo === "frat") {
+        const llev = c.cajLlev || 0;
+        const trai = c.cajTrai || 0;
+        texto += `*🏪 FRAT:* ${c.nombre}\n`;
+        texto += `*Hora:* ${horaActual} hs\n`;
+        texto += `*⏱️ Demora en parada:* ${txtMinutos}\n\n`;
+        texto += `*📦 Movimiento de Cajones Plásticos:*\n`;
+        texto += `- Cajones Llevados (Entregados): ${llev}\n`;
+        texto += `- Cajones Traídos (Retirados): ${trai}\n`;
+        if (obs !== "") texto += `\n📝 *Observaciones:* ${obs}`;
+    } else if (c.tipo === "hospitales") {
+        const tG = c.retTG || 0;
+        const tC = c.retTC || 0;
+        texto += `*🏥 HOSPITAL:* ${c.nombre}\n`;
+        texto += `*Hora:* ${horaActual} hs\n`;
+        texto += `*⏱️ Demora en parada:* ${txtMinutos}\n\n`;
+        texto += `*🧊 Envases Térmicos Retirados:*\n`;
+        texto += `- Térmicos Grandes: ${tG}\n`;
+        texto += `- Térmicos Chicos: ${tC}\n`;
+        if (obs !== "") texto += `\n📝 *Observaciones:* ${obs}`;
+    } else if (c.tipo === "caja") {
+        const b = c.bultos || 0;
+        texto += `*📦 CLIENTE FARINATA - NIPOTTI TO GO:* ${c.nombre}\n`;
+        texto += `*Hora:* ${horaActual} hs\n`;
+        texto += `*⏱️ Demora en parada:* ${txtMinutos}\n\n`;
+        texto += `*📦 Bultos Entregados:* ${b}\n`;
+        if (obs !== "") texto += `\n📝 *Observaciones:* ${obs}`;
+    } else {
+        const tG = c.retTG || 0;
+        const tC = c.retTC || 0;
+        const vid = c.retVid || 0;
+        const plas = c.retPlas || 0;
+
+        texto += `*Cliente:* ${c.nombre}\n`;
+        texto += `*Hora:* ${horaActual} hs\n`;
+        texto += `*⏱️ Demora en parada:* ${txtMinutos}\n\n`;
+        texto += `*📦 Envases Retirados:*\n`;
+        texto += `- Térmicos Grandes: ${tG}\n`;
+        texto += `- Térmicos Chicos: ${tC}\n`;
+        texto += `- Bandejas de Vidrio: ${vid}\n`;
+        if (plas > 0) texto += `- Bandejas Plásticas: ${plas}\n`;
+
+        if (obs !== "") texto += `\n\n📝 *Observaciones:* ${obs}`;
+    }
+
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
+    window.open(url, '_blank');
+}
+
+document.getElementById("btnVolverAEnfoque").onclick = () => {
+    mapa.setView([BASE_SUPRA.lat, BASE_SUPRA.lon], 14, { animate: true });
+    document.getElementById("btnVolverAEnfoque").style.display = "none";
+};
+
+document.getElementById("btnToggleNuevoPunto").onclick = () => {
+    resetearFormulario();
+    const f = document.getElementById("formNuevoPunto");
+    f.style.display = f.style.display === "none" ? "block" : "none";
+};
+
+function prepararEdicion(id) {
+    const clientes = JSON.parse(localStorage.getItem("puntos_entrega") || "[]");
+    const cliente = clientes.find(c => c.id === id);
+    if (!cliente) return;
+
+    document.getElementById("editandoId").value = cliente.id;
+    document.getElementById("tipoEntregaInput").value = cliente.tipo || "vianda";
+    actualizarOpcionesMinutos(cliente.minutosDetencion || 5);
+    document.getElementById("nombreClienteInput").value = cliente.nombre;
+    document.getElementById("coordsClienteInput").value = `${cliente.lat}, ${cliente.lon}`;
+
+    document.getElementById("btnGuardarCliente").innerText = "💾 Actualizar Punto";
+    document.getElementById("btnCancelarEdicion").style.display = "block";
+    document.getElementById("formNuevoPunto").style.display = "block";
+}
+
+document.getElementById("btnCancelarEdicion").onclick = () => {
+    resetearFormulario();
+    document.getElementById("formNuevoPunto").style.display = "none";
+};
+
+function resetearFormulario() {
+    document.getElementById("editandoId").value = "";
+    document.getElementById("tipoEntregaInput").value = "vianda";
+    actualizarOpcionesMinutos(5);
+    document.getElementById("nombreClienteInput").value = "";
+    document.getElementById("coordsClienteInput").value = "";
+    document.getElementById("btnGuardarCliente").innerText = "💾 Guardar Punto";
+    document.getElementById("btnCancelarEdicion").style.display = "none";
+}
+
+document.getElementById("btnGuardarCliente").onclick = () => {
+    const editId = document.getElementById("editandoId").value;
+    const tipo = document.getElementById("tipoEntregaInput").value;
+    const nombre = document.getElementById("nombreClienteInput").value.trim();
+    const coords = extraerCoordenadas(document.getElementById("coordsClienteInput").value.trim());
+    const minutosDetencion = parseInt(document.getElementById("selectMinutosDetencion").value) || 5;
+
+    if (!nombre || !coords) {
+        alert("Ingresá un nombre y coordenadas válidas.");
+        return;
+    }
+
+    let clientes = JSON.parse(localStorage.getItem("puntos_entrega") || "[]");
+
+    if (editId) {
+        clientes = clientes.map(c => c.id == editId ? { ...c, tipo, nombre, lat: coords.lat, lon: coords.lon, minutosDetencion } : c);
+    } else {
+        clientes.push({ 
+            id: Date.now(), tipo, nombre, lat: coords.lat, lon: coords.lon, minutosDetencion,
+            retTG: 0, retTC: 0, retVid: 0, retPlas: 0, cajLlev: 0, cajTrai: 0, bultos: 0, obs: "" 
+        });
+    }
+
+    localStorage.setItem("puntos_entrega", JSON.stringify(clientes));
+    resetearFormulario();
+    document.getElementById("formNuevoPunto").style.display = "none";
+    refrescarClientes();
+    mapa.setView([coords.lat, coords.lon], 17, { animate: true });
+};
+
+function borrarCliente(id) {
+    if (confirm("¿Estás seguro de eliminar este punto de entrega?")) {
+        let clientes = JSON.parse(localStorage.getItem("puntos_entrega") || "[]");
+        clientes = clientes.filter(c => c.id !== id);
+        localStorage.setItem("puntos_entrega", JSON.stringify(clientes));
+        refrescarClientes();
+    }
+}
+
+window.onload = () => {
+    const hoy = obtenerFechaHoyISO();
+    document.getElementById("inputFechaHistorial").value = hoy;
+    document.getElementById("inputFechaFichado").value = hoy;
+
+    actualizarOpcionesMinutos();
+    refrescarClientes();
+    verificarUbicacionBase();
+    actualizarTextoFichado();
+    setTimeout(() => { mapa.invalidateSize(); }, 500);
+};
+</script>
+
+</body>
+</html>
