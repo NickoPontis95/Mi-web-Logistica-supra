@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ficha de Entrega - Nipotti Congelados</title>
+    <link rel="manifest" href="manifest.json">
+  <title>Ficha de Entrega - Nipotti Congelados</title>
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; padding: 12px; font-family: Arial, sans-serif; background: #e0f2f1; color: #004d40; padding-bottom: 30px; }
@@ -636,4 +637,14 @@ window.onload = () => {
 </script>
 
 </body>
+<script>
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js")
+            .then(() => console.log("Service Worker registrado"))
+            .catch((error) => console.error("Error Service Worker:", error));
+    });
+}
+</script>
+  
 </html>

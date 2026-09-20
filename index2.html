@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trabajo y Puntos de Entrega</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <style>
+    <link rel="manifest" href="manifest.json">
+  <style>
         * { box-sizing: border-box; }
         body { margin: 0; padding: 0; font-family: Arial, sans-serif; background: #e0f2f1; padding-bottom: 30px; }
         
@@ -1190,4 +1191,14 @@ window.onload = () => {
 </script>
 
 </body>
+<script>
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js")
+            .then(() => console.log("Service Worker registrado"))
+            .catch((error) => console.error("Error Service Worker:", error));
+    });
+}
+</script>
+  
 </html>
